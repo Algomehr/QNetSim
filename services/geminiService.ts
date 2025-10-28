@@ -29,7 +29,20 @@ const circuitSchema = {
                         type: Type.OBJECT,
                         properties: {
                            label: { type: Type.STRING },
-                           angle: { type: Type.NUMBER, description: "Rotation angle in radians for gates like 'rz'." }
+                           angle: { type: Type.NUMBER, description: "Rotation angle in radians for gates like 'rz'." },
+                           handles: {
+                                type: Type.ARRAY,
+                                description: "Special handles for multi-qubit gates like CNOT or Toffoli for correct visual connection.",
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        type: { type: Type.STRING, description: "'source' or 'target'" },
+                                        position: { type: Type.STRING, description: "e.g., 'top', 'bottom', 'left', 'right'" },
+                                        id: { type: Type.STRING, description: "A unique ID for the handle, e.g., 'ctl_in'" }
+                                    },
+                                    required: ['type', 'position', 'id']
+                                }
+                           },
                         },
                         required: ['label'],
                     }
@@ -45,6 +58,8 @@ const circuitSchema = {
                     id: { type: Type.STRING },
                     source: { type: Type.STRING },
                     target: { type: Type.STRING },
+                    sourceHandle: { type: Type.STRING },
+                    targetHandle: { type: Type.STRING },
                     animated: { type: Type.BOOLEAN },
                 },
                 required: ['id', 'source', 'target'],
@@ -55,16 +70,34 @@ const circuitSchema = {
 };
 
 
-export const generateCircuitFromPrompt = async (prompt: string) => {
-  const fullPrompt = `You are an expert in quantum networking. Based on the user's request, generate a quantum network diagram. Represent the network as a JSON object that conforms to the provided schema. The user wants: '${prompt}'. 
-  Available node types are: 'endNode', 'repeater', 'eavesdropper', 'qubit', 'hadamard', 'cnot', 'measure', 'phase', 'rz', 'x', 'toffoli'.
-  - 'endNode' represents a user station like Alice or Bob.
-  - 'repeater' represents a quantum repeater for long-distance communication.
-  - For simple circuits, use the standard gates. For network protocols, use the network nodes.
-  - 'x' is the Pauli-X (or NOT) gate. It flips a qubit's state.
-  - 'toffoli' is the CCNOT gate. It's a 3-qubit gate.
-  - 'rz' is a rotation gate around the Z-axis. If you use it, you can specify a rotation 'angle' in radians in its data property. For example, to create a T gate, use an 'rz' gate with angle: ${Math.PI / 4}.
-  Provide positions for the nodes that make the diagram clear and readable on a 2D canvas, laid out horizontally. Ensure all node and edge IDs are unique strings.`;
+export const generateCircuitFromPrompt = async (prompt: string, forCode: boolean = false) => {
+  let fullPrompt: string;
+  if (forCode) {
+      fullPrompt = `You are an expert quantum circuit visualizer. Parse the provided Qiskit or OpenQASM code and convert it into a JSON object representing a visual circuit diagram. The JSON must conform to the provided schema.
+      - Position the nodes to create a clear, horizontally-laid-out circuit diagram. Start 'qubit' nodes at x=50, and increment x for subsequent gates. Maintain separate y positions for each qubit line.
+      - Assign unique string IDs to all nodes and edges.
+      - Create one 'qubit' node for each qubit declared or used.
+      - For each gate operation in the code, create a corresponding node ('hadamard', 'cnot', 'x', 'rz', 'toffoli', etc.).
+      - For an 'rz' gate, parse its rotation angle and store it in radians in the 'data.angle' property.
+      - For CNOT and Toffoli gates, you MUST include the special 'handles' array in their 'data' property as defined in the schema to ensure correct visual rendering of multiple inputs/outputs.
+      - Create edges to connect the nodes in the correct sequence, representing the flow on each qubit's wire.
+      - Ensure the 'source', 'target', 'sourceHandle', and 'targetHandle' properties of edges are correctly set to link the nodes.
+
+      User's code:
+      \`\`\`
+      ${prompt}
+      \`\`\``;
+  } else {
+      fullPrompt = `You are an expert in quantum networking. Based on the user's request, generate a quantum network diagram. Represent the network as a JSON object that conforms to the provided schema. The user wants: '${prompt}'. 
+      Available node types are: 'endNode', 'repeater', 'eavesdropper', 'qubit', 'hadamard', 'cnot', 'measure', 'phase', 'rz', 'x', 'toffoli'.
+      - 'endNode' represents a user station like Alice or Bob.
+      - 'repeater' represents a quantum repeater for long-distance communication.
+      - For simple circuits, use the standard gates. For network protocols, use the network nodes.
+      - 'x' is the Pauli-X (or NOT) gate. It flips a qubit's state.
+      - 'toffoli' is the CCNOT gate. It's a 3-qubit gate.
+      - 'rz' is a rotation gate around the Z-axis. If you use it, you can specify a rotation 'angle' in radians in its data property. For example, to create a T gate, use an 'rz' gate with angle: ${Math.PI / 4}.
+      Provide positions for the nodes that make the diagram clear and readable on a 2D canvas, laid out horizontally. Ensure all node and edge IDs are unique strings.`;
+  }
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -82,6 +115,36 @@ export const generateCircuitFromPrompt = async (prompt: string) => {
     throw new Error("Failed to generate circuit. The model might have returned an invalid format.");
   }
 };
+
+export const generateCodeFromCircuit = async (circuitJson: string, language: 'qiskit' | 'openqasm') => {
+    const prompt = `You are an expert Qiskit programmer. Convert the following JSON representation of a quantum circuit into ${language} code.
+The JSON describes nodes (qubits, gates) and edges (connections).
+- 'nodes' contains a list of components. 'edges' define the connections between them.
+- Find all 'qubit' type nodes to determine the number of qubits required.
+- The circuit flows from left to right, generally following the x-position of the nodes.
+- Apply gates like 'hadamard', 'x', 'cnot' to the corresponding qubits. Edges show the data flow.
+- For a 'cnot' node, an incoming edge with 'targetHandle: "ctl_in"' comes from the control qubit. An incoming edge with 'targetHandle: "tgt_in"' comes from the target qubit.
+- For an 'rz' gate, use the 'angle' from the node's 'data' property.
+- For a 'toffoli' (CCNOT) gate, identify the two control qubits and one target qubit from the incoming edges and their handles ('ctl1_in', 'ctl2_in', 'tgt_in').
+- For Qiskit, create a QuantumCircuit and append the operations. Add measurements at the end for all qubits that terminate in a 'measure' node.
+- For OpenQASM 2.0, declare the qreg and creg, apply the gates, and add measurements.
+- Your response MUST be only the code, with no explanations, backticks, or markdown formatting.
+
+Circuit JSON:
+${circuitJson}`;
+
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+        });
+        return response.text.trim();
+    } catch (error) {
+        console.error("Error generating code from Gemini:", error);
+        throw new Error("Failed to generate code from circuit.");
+    }
+};
+
 
 const protocolAnalysisSchema = {
     type: Type.OBJECT,

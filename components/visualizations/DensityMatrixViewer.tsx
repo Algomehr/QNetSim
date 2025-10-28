@@ -35,9 +35,11 @@ export const DensityMatrixViewer: React.FC<DensityMatrixViewerProps> = ({ matrix
         `|${i.toString(2).padStart(numQubits, '0')}⟩`
     );
 
-    const getCellColor = (c: ComplexNumber) => {
+    const getCellColor = (c: ComplexNumber): React.CSSProperties => {
         const magnitude = Math.sqrt(c[0] * c[0] + c[1] * c[1]);
-        if (magnitude < 1e-4) return 'bg-gray-800/50';
+        if (magnitude < 1e-4) {
+            return { backgroundColor: 'rgba(31, 41, 55, 0.5)' }; // Corresponds to bg-gray-800/50
+        }
         const opacity = Math.min(1, magnitude * 1.5);
         return { backgroundColor: `rgba(22, 163, 175, ${opacity})` }; // teal color
     }

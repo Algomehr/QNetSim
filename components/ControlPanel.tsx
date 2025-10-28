@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CircuitData, SimulationSettings, CouplingMap, CircuitTemplate, Tutorial } from '../types';
 import { CIRCUIT_TEMPLATES } from '../CircuitTemplates';
 import { TUTORIALS } from '../tutorials';
-import { MagicWandIcon, ClearIcon } from './icons/UIIcons';
+import { MagicWandIcon, ClearIcon, CodeIcon } from './icons/UIIcons';
 
 interface ControlPanelProps {
   onGenerate: (prompt: string) => void;
@@ -10,6 +10,8 @@ interface ControlPanelProps {
   onLoadTemplate: (circuit: CircuitData) => void;
   onSettingsChange: (settings: SimulationSettings) => void;
   onStartTutorial: (tutorial: Tutorial) => void;
+  onImportCode: () => void;
+  onExportCode: () => void;
   isGenerating: boolean;
   settings: SimulationSettings;
 }
@@ -37,6 +39,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onLoadTemplate,
   onSettingsChange,
   onStartTutorial,
+  onImportCode,
+  onExportCode,
   isGenerating, 
   settings
 }) => {
@@ -168,6 +172,28 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         onChange={(e) => handleSettingChange('readoutError', parseFloat(e.target.value) / 100)}
                     />
                 </div>
+            </div>
+          </details>
+
+          {/* Developer Tools Section */}
+          <details className="py-4 group">
+            <summary className="font-semibold text-gray-200 text-base cursor-pointer list-none flex justify-between items-center">
+                <div className="flex items-center gap-2"><CodeIcon /> ابزارهای برنامه‌نویس</div>
+                <span className="text-cyan-400 group-open:rotate-90 transition-transform">›</span>
+            </summary>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                    onClick={onExportCode}
+                    className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-indigo-500/20 hover:border-indigo-400/50"
+                >
+                    <p className="font-semibold text-indigo-300">خروجی به کد</p>
+                </button>
+                <button
+                    onClick={onImportCode}
+                    className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-sky-500/20 hover:border-sky-400/50"
+                >
+                    <p className="font-semibold text-sky-300">ورود از کد</p>
+                </button>
             </div>
           </details>
 

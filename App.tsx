@@ -19,7 +19,8 @@ import { AnalysisPanel } from './components/AnalysisPanel';
 import { StateVectorInspector } from './components/StateVectorInspector';
 import { NetworkHealthPanel } from './components/NetworkHealthPanel';
 import { TutorialPanel } from './components/TutorialPanel';
-import { generateCircuitFromPrompt, analyzeCircuitWithGemini } from './services/geminiService';
+import { CodeModal } from './components/CodeModal';
+import { generateCircuitFromPrompt, analyzeCircuitWithGemini, generateCodeFromCircuit } from './services/geminiService';
 import { CircuitData, AnalysisResult, AnalysisStatus, NodeData, ComponentType, SimulationSettings, EdgeData, AnalysisMode, NetworkStats, Tutorial } from './types';
 import { ToolsIcon, AnalyzeIcon, CanvasIcon, CloseIcon, ComponentsIcon, DesignIcon } from './components/icons/UIIcons';
 
@@ -67,6 +68,8 @@ const getDefaultParameters = (type: ComponentType): Partial<NodeData> => {
     }
 };
 
+type CodeLanguage = 'qiskit' | 'openqasm';
+
 const App: React.FC = () => {
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<EdgeData>([]);
@@ -93,6 +96,15 @@ const App: React.FC = () => {
   const [leftPanelTab, setLeftPanelTab] = useState<'controls' | 'components'>('controls');
   const [activeMobilePanel, setActiveMobilePanel] = useState<'tools' | 'analysis' | null>(null);
   const [mobileToolsTab, setMobileToolsTab] = useState<'controls' | 'components' | 'properties'>('controls');
+
+  // --- Code Import/Export State ---
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExportingCode, setIsExportingCode] = useState(false);
+  const [exportedCode, setExportedCode] = useState<{ qiskit?: string; openqasm?: string }>({});
+  const [activeCodeLanguage, setActiveCodeLanguage] = useState<CodeLanguage>('qiskit');
+  const [importCode, setImportCode] = useState('');
+
 
   // --- Tutorial State ---
   const [activeTutorial, setActiveTutorial] = useState<Tutorial | null>(null);
@@ -410,20 +422,21 @@ const App: React.FC = () => {
     }, 50);
   };
 
-  const handleGenerateCircuit = async (prompt: string) => {
+  const handleGenerateCircuit = async (prompt: string, fromCode: boolean = false) => {
     handleClear();
     setIsGenerating(true);
     try {
-      const circuit: CircuitData = await generateCircuitFromPrompt(prompt);
+      const circuit: CircuitData = await generateCircuitFromPrompt(prompt, fromCode);
       setNodes(circuit.nodes || []);
       setEdges(circuit.edges || []);
     } catch (error) {
       console.error(error);
+      // You might want to show an error to the user here
     } finally {
       setIsGenerating(false);
     }
   };
-  
+
   const handleAnalyze = async (mode: AnalysisMode) => {
     if (isTutorialModeActive && currentStep?.action === 'click-element' && currentStep.targetId?.startsWith('analysis-button-group')) {
         if (currentStep.expectedClickValue && mode === currentStep.expectedClickValue) {
@@ -450,7 +463,54 @@ const App: React.FC = () => {
       setAnalysisStatus('error');
     }
   };
+
+  // --- Code Import/Export Handlers ---
+  const handleExportCode = useCallback(async (language: CodeLanguage) => {
+      if (nodes.length === 0) {
+          alert("برای خروجی گرفتن ابتدا یک مدار بسازید.");
+          return;
+      }
+      if (exportedCode[language]) {
+          setActiveCodeLanguage(language);
+          return; // Already generated
+      }
+      setIsExportingCode(true);
+      setActiveCodeLanguage(language);
+      try {
+          const simplifiedCircuit = {
+              nodes: nodes.map(({ id, type, data }) => ({ id, type, data: { label: data.label, angle: data.angle } })),
+              edges: edges.map(({ id, source, target, sourceHandle, targetHandle }) => ({ id, source, target, sourceHandle, targetHandle })),
+          };
+          const code = await generateCodeFromCircuit(JSON.stringify(simplifiedCircuit), language);
+          setExportedCode(prev => ({ ...prev, [language]: code }));
+      } catch (error) {
+          console.error(`Failed to export to ${language}`, error);
+          alert(`خطا در تولید کد ${language}.`);
+      } finally {
+          setIsExportingCode(false);
+      }
+  }, [nodes, edges, exportedCode]);
   
+  const handleOpenExportModal = () => {
+    setExportedCode({}); // Clear previous code
+    setIsExportModalOpen(true);
+    handleExportCode('qiskit'); // Generate Qiskit code by default
+  };
+  
+  const handleImportFromCode = () => {
+      if (!importCode.trim()) return;
+      setIsImportModalOpen(false);
+      handleGenerateCircuit(importCode, true);
+      setImportCode('');
+  };
+
+  const handleCopyToClipboard = () => {
+    const code = exportedCode[activeCodeLanguage];
+    if (code) {
+      navigator.clipboard.writeText(code);
+      // Maybe show a small "Copied!" message
+    }
+  };
 
   return (
     <main className="h-screen w-screen bg-transparent text-white overflow-hidden" dir="rtl">
@@ -473,13 +533,15 @@ const App: React.FC = () => {
                 <div className="flex-grow overflow-y-auto">
                     {leftPanelTab === 'controls' ? (
                         <ControlPanel 
-                            onGenerate={handleGenerateCircuit} 
+                            onGenerate={(p) => handleGenerateCircuit(p, false)}
                             isGenerating={isGenerating}
                             onClear={handleClear}
                             onLoadTemplate={handleLoadTemplate}
                             settings={simulationSettings}
                             onSettingsChange={setSimulationSettings}
                             onStartTutorial={handleStartTutorial}
+                            onImportCode={() => setIsImportModalOpen(true)}
+                            onExportCode={handleOpenExportModal}
                         />
                     ) : (
                         <div id="component-palette-wrapper">
@@ -574,13 +636,12 @@ const App: React.FC = () => {
                         </nav>
                     </div>
                     <div className="flex-grow overflow-y-auto" id="mobile-component-palette-wrapper">
-                      {mobileToolsTab === 'controls' && <ControlPanel onGenerate={(p) => {handleGenerateCircuit(p); setActiveMobilePanel(null)}} isGenerating={isGenerating} onClear={() => {handleClear(); setActiveMobilePanel(null)}} onLoadTemplate={(t) => {handleLoadTemplate(t); setActiveMobilePanel(null)}} settings={simulationSettings} onSettingsChange={setSimulationSettings} onStartTutorial={(t) => {handleStartTutorial(t); setActiveMobilePanel(null)}} />}
+                      {mobileToolsTab === 'controls' && <ControlPanel onGenerate={(p) => {handleGenerateCircuit(p); setActiveMobilePanel(null)}} isGenerating={isGenerating} onClear={() => {handleClear(); setActiveMobilePanel(null)}} onLoadTemplate={(t) => {handleLoadTemplate(t); setActiveMobilePanel(null)}} settings={simulationSettings} onSettingsChange={setSimulationSettings} onStartTutorial={(t) => {handleStartTutorial(t); setActiveMobilePanel(null)}} onImportCode={() => {setIsImportModalOpen(true); setActiveMobilePanel(null)}} onExportCode={() => {handleOpenExportModal(); setActiveMobilePanel(null)}} />}
                       {mobileToolsTab === 'components' && <ComponentPalette />}
                       {mobileToolsTab === 'properties' && (selectedNode || selectedEdge) && <PropertiesPanel selectedNode={selectedNode} selectedEdge={selectedEdge} onUpdateNode={handleUpdateNode} onUpdateEdge={handleUpdateEdge} simulationResult={analysisResult} />}
                     </div>
                 </div>
             </div>
-
 
             {/* Mobile Toolbar */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around items-center bg-gray-900/80 backdrop-blur-sm border-t border-white/10 p-2 z-30">
@@ -598,6 +659,59 @@ const App: React.FC = () => {
                 </button>
             </div>
         </div>
+
+        {/* Code Modals */}
+        <CodeModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title="ورود مدار از کد">
+            <div className="flex flex-col h-full">
+              <p className="text-sm text-gray-400 mb-3">کد Qiskit یا OpenQASM 2.0 را اینجا وارد کنید.</p>
+              <textarea
+                  className="w-full flex-grow p-2 bg-black/30 border border-white/10 rounded-md text-sm focus:ring-2 focus:ring-cyan-400 focus:outline-none placeholder-gray-500 resize-none font-mono"
+                  placeholder={`from qiskit import QuantumCircuit\n\n# Create a new circuit with two qubits\nqc = QuantumCircuit(2)\n\nqc.h(0)\nqc.cx(0, 1)\n\nprint(qc)`}
+                  value={importCode}
+                  onChange={(e) => setImportCode(e.target.value)}
+                  disabled={isGenerating}
+              />
+              <button
+                  onClick={handleImportFromCode}
+                  disabled={isGenerating || !importCode.trim()}
+                  className="mt-4 w-full bg-gradient-to-r from-sky-500 to-blue-500 text-white font-bold py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                  {isGenerating ? 'در حال ساخت...' : 'ساخت مدار از کد'}
+              </button>
+            </div>
+        </CodeModal>
+
+        <CodeModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="خروجی مدار به کد">
+            <div className="flex flex-col h-full">
+              <div className="flex-shrink-0 flex border-b border-white/20 mb-3">
+                  <button onClick={() => handleExportCode('qiskit')} className={`flex-1 p-3 text-sm font-semibold transition-colors focus:outline-none ${activeCodeLanguage === 'qiskit' ? 'bg-indigo-500/20 text-indigo-300' : 'text-gray-400 hover:bg-white/5'}`}>Qiskit</button>
+                  <button onClick={() => handleExportCode('openqasm')} className={`flex-1 p-3 text-sm font-semibold transition-colors focus:outline-none ${activeCodeLanguage === 'openqasm' ? 'bg-indigo-500/20 text-indigo-300' : 'text-gray-400 hover:bg-white/5'}`}>OpenQASM 2.0</button>
+              </div>
+              <div className="flex-grow bg-black/30 rounded-md p-1 relative">
+                {isExportingCode ? (
+                   <div className="flex items-center justify-center h-full">
+                        <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                   </div>
+                ) : (
+                    <pre className="h-full w-full overflow-auto">
+                        <code className="text-sm font-mono text-gray-200 whitespace-pre">
+                            {exportedCode[activeCodeLanguage] || `کدی برای ${activeCodeLanguage} یافت نشد.`}
+                        </code>
+                    </pre>
+                )}
+              </div>
+              <button
+                  onClick={handleCopyToClipboard}
+                  disabled={isExportingCode || !exportedCode[activeCodeLanguage]}
+                  className="mt-4 w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed"
+              >
+                  کپی در کلیپ‌بورد
+              </button>
+            </div>
+        </CodeModal>
     </main>
   );
 };

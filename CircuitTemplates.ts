@@ -109,49 +109,83 @@ const teleportationTemplate: CircuitTemplate = {
 
 const repeaterTemplate: CircuitTemplate = {
     name: "توزیع درهم‌تنیدگی با تکرارگر",
-    description: "استفاده از تکرارگر برای ایجاد درهم‌تنیدگی بین دو گره دور.",
+    description: "نمایش یک لینک تکرارگر کوانتومی که درهم‌تنیدگی را بین دو گره دور توزیع می‌کند.",
     category: "پروتکل‌های ارتباطی",
     circuit: {
         nodes: [
-            { id: 'alice', type: ComponentType.EndNode, position: { x: 50, y: 200 }, data: { label: 'آلیس', role: 'sender' } },
+            {
+                id: 'source_A',
+                type: ComponentType.Qubit,
+                position: { x: 100, y: 100 },
+                data: {
+                    label: 'منبع A',
+                    handles: [
+                        { type: 'source', position: Position.Right, id: 's_a_right' },
+                        { type: 'source', position: Position.Bottom, id: 's_a_bottom' },
+                    ]
+                }
+            },
+            { id: 'alice', type: ComponentType.EndNode, position: { x: 100, y: 300 }, data: { label: 'آلیس', role: 'receiver' } },
             { id: 'repeater', type: ComponentType.Repeater, position: { x: 350, y: 200 }, data: { label: 'تکرارگر', swapFidelity: 0.95 } },
-            { id: 'bob', type: ComponentType.EndNode, position: { x: 650, y: 200 }, data: { label: 'باب', role: 'receiver' } },
+            {
+                id: 'source_B',
+                type: ComponentType.Qubit,
+                position: { x: 600, y: 100 },
+                data: {
+                    label: 'منبع B',
+                    handles: [
+                        { type: 'source', position: Position.Left, id: 's_b_left' },
+                        { type: 'source', position: Position.Bottom, id: 's_b_bottom' },
+                    ]
+                }
+            },
+            { id: 'bob', type: ComponentType.EndNode, position: { x: 600, y: 300 }, data: { label: 'باب', role: 'receiver' } },
         ],
         edges: [
-            { id: 'e_alice_repeater', source: 'alice', target: 'repeater', animated: true, data: { type: 'quantum', length: 50, attenuation: 0.2 } },
-            { id: 'e_repeater_bob', source: 'repeater', target: 'bob', animated: true, data: { type: 'quantum', length: 50, attenuation: 0.2 } },
+            { id: 'e_sa_alice', source: 'source_A', sourceHandle: 's_a_bottom', target: 'alice', animated: true, data: { type: 'quantum', length: 5, attenuation: 0.2 } },
+            { id: 'e_sa_repeater', source: 'source_A', sourceHandle: 's_a_right', target: 'repeater', animated: true, data: { type: 'quantum', length: 50, attenuation: 0.2 } },
+            { id: 'e_sb_bob', source: 'source_B', sourceHandle: 's_b_bottom', target: 'bob', animated: true, data: { type: 'quantum', length: 5, attenuation: 0.2 } },
+            { id: 'e_sb_repeater', source: 'source_B', sourceHandle: 's_b_left', target: 'repeater', animated: true, data: { type: 'quantum', length: 50, attenuation: 0.2 } },
         ]
     }
 };
 
 const bb84NoEveTemplate: CircuitTemplate = {
   name: "پروتکل BB84 (کانال امن)",
-  description: "شبیه‌سازی BB84 بدون حضور شنودگر برای مقایسه.",
+  description: "شبیه‌سازی BB84 بدون شنودگر، با نمایش اجزای آماده‌سازی و اندازه‌گیری.",
   category: "پروتکل‌های ارتباطی",
   circuit: {
     nodes: [
-      { id: 'alice_s', type: ComponentType.EndNode, position: { x: 50, y: 200 }, data: { label: 'آلیس (فرستنده)', role: 'sender' } },
-      { id: 'bob_s', type: ComponentType.EndNode, position: { x: 450, y: 200 }, data: { label: 'باب (گیرنده)', role: 'receiver' } },
+      { id: 'bb84_q_source', type: ComponentType.Qubit, position: { x: 50, y: 200 }, data: { label: "منبع فوتون" } },
+      { id: 'bb84_h_alice', type: ComponentType.Hadamard, position: { x: 250, y: 200 }, data: { label: "آماده‌سازی مبنا" } },
+      { id: 'bb84_h_bob', type: ComponentType.Hadamard, position: { x: 550, y: 200 }, data: { label: "انتخاب مبنا" } },
+      { id: 'bb84_measure_bob', type: ComponentType.Measure, position: { x: 750, y: 200 }, data: { label: "آشکارساز" } },
     ],
     edges: [
-      { id: 'e_alice_bob_s', source: 'alice_s', target: 'bob_s', animated: true, data: { type: 'quantum', length: 25, attenuation: 0.2 } },
+      { id: 'e_bb84_s_ha', source: 'bb84_q_source', target: 'bb84_h_alice', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
+      { id: 'e_bb84_ha_hb', source: 'bb84_h_alice', target: 'bb84_h_bob', animated: true, data: { type: 'quantum', length: 25, attenuation: 0.2 } },
+      { id: 'e_bb84_hb_m', source: 'bb84_h_bob', target: 'bb84_measure_bob', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
     ],
   },
 };
 
 const bb84Template: CircuitTemplate = {
   name: "پروتکل BB84 با شنودگر",
-  description: "شبیه‌سازی توزیع کلید کوانتومی با حضور Eve.",
+  description: "شبیه‌سازی توزیع کلید کوانتومی با یک شنودگر در کانال.",
   category: "پروتکل‌های ارتباطی",
   circuit: {
     nodes: [
-      { id: 'alice', type: ComponentType.EndNode, position: { x: 50, y: 200 }, data: { label: 'آلیس (فرستنده)', role: 'sender' } },
-      { id: 'eve', type: ComponentType.Eavesdropper, position: { x: 300, y: 200 }, data: { label: 'Eve (شنودگر)' } },
-      { id: 'bob', type: ComponentType.EndNode, position: { x: 550, y: 200 }, data: { label: 'باب (گیرنده)', role: 'receiver' } },
+      { id: 'bb84e_q_source', type: ComponentType.Qubit, position: { x: 50, y: 200 }, data: { label: "منبع فوتون" } },
+      { id: 'bb84e_h_alice', type: ComponentType.Hadamard, position: { x: 250, y: 200 }, data: { label: "آماده‌سازی مبنا" } },
+      { id: 'bb84e_eve', type: ComponentType.Eavesdropper, position: { x: 450, y: 200 }, data: { label: 'Eve (شنودگر)' } },
+      { id: 'bb84e_h_bob', type: ComponentType.Hadamard, position: { x: 650, y: 200 }, data: { label: "انتخاب مبنا" } },
+      { id: 'bb84e_measure_bob', type: ComponentType.Measure, position: { x: 850, y: 200 }, data: { label: "آشکارساز" } },
     ],
     edges: [
-      { id: 'e_alice_eve', source: 'alice', target: 'eve', animated: true, data: { type: 'quantum', length: 10, attenuation: 0.2 } },
-      { id: 'e_eve_bob', source: 'eve', target: 'bob', animated: true, data: { type: 'quantum', length: 10, attenuation: 0.2 } },
+      { id: 'e_bb84e_s_ha', source: 'bb84e_q_source', target: 'bb84e_h_alice', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
+      { id: 'e_bb84e_ha_eve', source: 'bb84e_h_alice', target: 'bb84e_eve', animated: true, data: { type: 'quantum', length: 10, attenuation: 0.2 } },
+      { id: 'e_bb84e_eve_hb', source: 'bb84e_eve', target: 'bb84e_h_bob', animated: true, data: { type: 'quantum', length: 10, attenuation: 0.2 } },
+      { id: 'e_bb84e_hb_m', source: 'bb84e_h_bob', target: 'bb84e_measure_bob', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
     ],
   },
 };
