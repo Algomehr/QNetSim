@@ -1,0 +1,5 @@
+{
+  "name": "QNetSim",
+  "description": "An interactive, visual simulation environment that allows students, researchers, and engineers to design, run, and analyze quantum networks, bridging the gap between complex quantum theory and practical implementation.",
+  "requestFramePermissions": []
+}

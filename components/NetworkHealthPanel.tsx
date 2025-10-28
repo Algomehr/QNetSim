@@ -1,0 +1,66 @@
+import React from 'react';
+import { NetworkStats } from '../types';
+import { AttenuationIcon, LatencyIcon, ProbabilityIcon, LengthIcon } from './icons/UIIcons';
+
+interface NetworkHealthPanelProps {
+  stats: NetworkStats | null;
+}
+
+const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string; color: string; }> = ({ icon, label, value, color }) => (
+  <div className="flex items-center space-x-3 space-x-reverse bg-black/20 p-2 rounded-lg flex-1 min-w-[160px]">
+    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${color}`}>
+        {icon}
+    </div>
+    <div className="text-right">
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-sm font-bold text-white">{value}</p>
+    </div>
+  </div>
+);
+
+export const NetworkHealthPanel: React.FC<NetworkHealthPanelProps> = ({ stats }) => {
+  if (!stats) {
+    return (
+        <div className="flex-shrink-0 bg-gray-900/40 border-b border-white/10 p-2 text-center">
+            <p className="text-xs text-gray-500">برای مشاهده آمار سلامت شبکه، یک کانال کوانتومی اضافه کنید.</p>
+        </div>
+    );
+  }
+  
+  const survivalProbability = stats.networkSurvivalProbability * 100;
+  let probabilityColor = 'bg-green-500/30 text-green-300';
+  if (survivalProbability < 50) probabilityColor = 'bg-yellow-500/30 text-yellow-300';
+  if (survivalProbability < 10) probabilityColor = 'bg-red-500/30 text-red-300';
+
+
+  return (
+    <div className="flex-shrink-0 bg-gray-900/60 backdrop-blur-xl border-b border-white/10 p-2">
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <StatCard 
+            icon={<LengthIcon />} 
+            label="طول کل کانال‌ها" 
+            value={`${stats.totalLength.toFixed(1)} km`}
+            color="bg-blue-500/30 text-blue-300"
+        />
+        <StatCard 
+            icon={<AttenuationIcon />} 
+            label="تضعیف کل" 
+            value={`${stats.totalAttenuation.toFixed(2)} dB`}
+            color="bg-orange-500/30 text-orange-300"
+        />
+        <StatCard 
+            icon={<LatencyIcon />} 
+            label="تخمین تأخیر" 
+            value={`${stats.estimatedLatency.toFixed(3)} ms`}
+            color="bg-purple-500/30 text-purple-300"
+        />
+        <StatCard 
+            icon={<ProbabilityIcon />} 
+            label="احتمال بقای سیگنال" 
+            value={`${survivalProbability.toExponential(2)} %`}
+            color={probabilityColor}
+        />
+      </div>
+    </div>
+  );
+};
