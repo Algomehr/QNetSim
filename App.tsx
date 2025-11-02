@@ -20,7 +20,7 @@ import { StateVectorInspector } from './components/StateVectorInspector';
 import { NetworkHealthPanel } from './components/NetworkHealthPanel';
 import { TutorialPanel } from './components/TutorialPanel';
 import { CodeModal } from './components/CodeModal';
-import { generateCircuitFromPrompt, analyzeCircuitWithGemini, generateCodeFromCircuit } from './services/geminiService';
+import { generateCircuitFromPrompt, analyzeCircuitWithGemini, generateCodeFromCircuit, generateHardwareCodeFromCircuit } from './services/geminiService';
 import { CircuitData, AnalysisResult, AnalysisStatus, NodeData, ComponentType, SimulationSettings, EdgeData, AnalysisMode, NetworkStats, Tutorial } from './types';
 import { ToolsIcon, AnalyzeIcon, CanvasIcon, CloseIcon, ComponentsIcon, DesignIcon } from './components/icons/UIIcons';
 
@@ -104,6 +104,11 @@ const App: React.FC = () => {
   const [exportedCode, setExportedCode] = useState<{ qiskit?: string; openqasm?: string }>({});
   const [activeCodeLanguage, setActiveCodeLanguage] = useState<CodeLanguage>('qiskit');
   const [importCode, setImportCode] = useState('');
+
+  // --- Hardware Code Export State ---
+  const [isHardwareModalOpen, setIsHardwareModalOpen] = useState(false);
+  const [isExportingHardwareCode, setIsExportingHardwareCode] = useState(false);
+  const [exportedHardwareCode, setExportedHardwareCode] = useState('');
 
 
   // --- Tutorial State ---
@@ -504,13 +509,37 @@ const App: React.FC = () => {
       setImportCode('');
   };
 
-  const handleCopyToClipboard = () => {
-    const code = exportedCode[activeCodeLanguage];
+  const handleCopyToClipboard = (code: string | undefined) => {
     if (code) {
       navigator.clipboard.writeText(code);
       // Maybe show a small "Copied!" message
     }
   };
+
+    // --- Hardware Code Export Handler ---
+  const handleOpenHardwareModal = useCallback(async () => {
+    if (nodes.length === 0) {
+        alert("برای خروجی گرفتن ابتدا یک مدار بسازید.");
+        return;
+    }
+    setIsHardwareModalOpen(true);
+    setIsExportingHardwareCode(true);
+    setExportedHardwareCode(''); // Clear previous
+    try {
+        const simplifiedCircuit = {
+            nodes: nodes.map(({ id, type, data }) => ({ id, type, data: { label: data.label } })),
+            edges: edges.map(({ id, source, target }) => ({ id, source, target })),
+        };
+        const code = await generateHardwareCodeFromCircuit(JSON.stringify(simplifiedCircuit), 'verilog');
+        setExportedHardwareCode(code);
+    } catch (error) {
+        console.error(`Failed to export to verilog`, error);
+        alert(`خطا در تولید کد Verilog.`);
+    } finally {
+        setIsExportingHardwareCode(false);
+    }
+  }, [nodes, edges]);
+
 
   return (
     <main className="h-screen w-screen bg-transparent text-white overflow-hidden" dir="rtl">
@@ -542,6 +571,7 @@ const App: React.FC = () => {
                             onStartTutorial={handleStartTutorial}
                             onImportCode={() => setIsImportModalOpen(true)}
                             onExportCode={handleOpenExportModal}
+                            onExportHardwareCode={handleOpenHardwareModal}
                         />
                     ) : (
                         <div id="component-palette-wrapper">
@@ -636,7 +666,7 @@ const App: React.FC = () => {
                         </nav>
                     </div>
                     <div className="flex-grow overflow-y-auto" id="mobile-component-palette-wrapper">
-                      {mobileToolsTab === 'controls' && <ControlPanel onGenerate={(p) => {handleGenerateCircuit(p); setActiveMobilePanel(null)}} isGenerating={isGenerating} onClear={() => {handleClear(); setActiveMobilePanel(null)}} onLoadTemplate={(t) => {handleLoadTemplate(t); setActiveMobilePanel(null)}} settings={simulationSettings} onSettingsChange={setSimulationSettings} onStartTutorial={(t) => {handleStartTutorial(t); setActiveMobilePanel(null)}} onImportCode={() => {setIsImportModalOpen(true); setActiveMobilePanel(null)}} onExportCode={() => {handleOpenExportModal(); setActiveMobilePanel(null)}} />}
+                      {mobileToolsTab === 'controls' && <ControlPanel onGenerate={(p) => {handleGenerateCircuit(p); setActiveMobilePanel(null)}} isGenerating={isGenerating} onClear={() => {handleClear(); setActiveMobilePanel(null)}} onLoadTemplate={(t) => {handleLoadTemplate(t); setActiveMobilePanel(null)}} settings={simulationSettings} onSettingsChange={setSimulationSettings} onStartTutorial={(t) => {handleStartTutorial(t); setActiveMobilePanel(null)}} onImportCode={() => {setIsImportModalOpen(true); setActiveMobilePanel(null)}} onExportCode={() => {handleOpenExportModal(); setActiveMobilePanel(null)}} onExportHardwareCode={() => {handleOpenHardwareModal(); setActiveMobilePanel(null)}} />}
                       {mobileToolsTab === 'components' && <ComponentPalette />}
                       {mobileToolsTab === 'properties' && (selectedNode || selectedEdge) && <PropertiesPanel selectedNode={selectedNode} selectedEdge={selectedEdge} onUpdateNode={handleUpdateNode} onUpdateEdge={handleUpdateEdge} simulationResult={analysisResult} />}
                     </div>
@@ -681,7 +711,7 @@ const App: React.FC = () => {
             </div>
         </CodeModal>
 
-        <CodeModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="خروجی مدار به کد">
+        <CodeModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} title="خروجی مدار به کد کوانتومی">
             <div className="flex flex-col h-full">
               <div className="flex-shrink-0 flex border-b border-white/20 mb-3">
                   <button onClick={() => handleExportCode('qiskit')} className={`flex-1 p-3 text-sm font-semibold transition-colors focus:outline-none ${activeCodeLanguage === 'qiskit' ? 'bg-indigo-500/20 text-indigo-300' : 'text-gray-400 hover:bg-white/5'}`}>Qiskit</button>
@@ -704,9 +734,38 @@ const App: React.FC = () => {
                 )}
               </div>
               <button
-                  onClick={handleCopyToClipboard}
+                  onClick={() => handleCopyToClipboard(exportedCode[activeCodeLanguage])}
                   disabled={isExportingCode || !exportedCode[activeCodeLanguage]}
                   className="mt-4 w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed"
+              >
+                  کپی در کلیپ‌بورد
+              </button>
+            </div>
+        </CodeModal>
+
+        <CodeModal isOpen={isHardwareModalOpen} onClose={() => setIsHardwareModalOpen(false)} title="خروجی کد سخت‌افزار (Verilog)">
+            <div className="flex flex-col h-full">
+              <p className="text-sm text-gray-400 mb-3 flex-shrink-0">این کد Verilog یک کنترلر پایه BB84 را برای پیاده‌سازی روی FPGA شبیه‌سازی می‌کند.</p>
+              <div className="flex-grow bg-black/30 rounded-md p-1 relative">
+                {isExportingHardwareCode ? (
+                   <div className="flex items-center justify-center h-full">
+                        <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                   </div>
+                ) : (
+                    <pre className="h-full w-full overflow-auto">
+                        <code className="text-sm font-mono text-gray-200 whitespace-pre">
+                            {exportedHardwareCode || `کدی برای Verilog یافت نشد. آیا مدار شما یک پروتکل QKD است؟`}
+                        </code>
+                    </pre>
+                )}
+              </div>
+              <button
+                  onClick={() => handleCopyToClipboard(exportedHardwareCode)}
+                  disabled={isExportingHardwareCode || !exportedHardwareCode}
+                  className="mt-4 w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed"
               >
                   کپی در کلیپ‌بورد
               </button>

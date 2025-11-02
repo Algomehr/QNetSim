@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CircuitData, SimulationSettings, CouplingMap, CircuitTemplate, Tutorial } from '../types';
 import { CIRCUIT_TEMPLATES } from '../CircuitTemplates';
 import { TUTORIALS } from '../tutorials';
-import { MagicWandIcon, ClearIcon, CodeIcon } from './icons/UIIcons';
+import { MagicWandIcon, ClearIcon, CodeIcon, ChipIcon } from './icons/UIIcons';
 
 interface ControlPanelProps {
   onGenerate: (prompt: string) => void;
@@ -12,6 +12,7 @@ interface ControlPanelProps {
   onStartTutorial: (tutorial: Tutorial) => void;
   onImportCode: () => void;
   onExportCode: () => void;
+  onExportHardwareCode: () => void;
   isGenerating: boolean;
   settings: SimulationSettings;
 }
@@ -41,6 +42,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onStartTutorial,
   onImportCode,
   onExportCode,
+  onExportHardwareCode,
   isGenerating, 
   settings
 }) => {
@@ -181,18 +183,27 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <div className="flex items-center gap-2"><CodeIcon /> ابزارهای برنامه‌نویس</div>
                 <span className="text-cyan-400 group-open:rotate-90 transition-transform">›</span>
             </summary>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-1 gap-3">
                 <button
                     onClick={onExportCode}
-                    className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-indigo-500/20 hover:border-indigo-400/50"
+                    className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-indigo-500/20 hover:border-indigo-400/50 flex items-center justify-center gap-2"
                 >
-                    <p className="font-semibold text-indigo-300">خروجی به کد</p>
+                    <CodeIcon /> <p className="font-semibold text-indigo-300">خروجی به کد کوانتومی</p>
+                </button>
+                 <button
+                    onClick={onImportCode}
+                    className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-sky-500/20 hover:border-sky-400/50 flex items-center justify-center gap-2"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-sky-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 4l-4 16m-4-4l-4-4 4-4M18 8l4 4-4 4" />
+                    </svg>
+                    <p className="font-semibold text-sky-300">ورود از کد</p>
                 </button>
                 <button
-                    onClick={onImportCode}
-                    className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-sky-500/20 hover:border-sky-400/50"
+                    onClick={onExportHardwareCode}
+                    className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-green-500/20 hover:border-green-400/50 flex items-center justify-center gap-2"
                 >
-                    <p className="font-semibold text-sky-300">ورود از کد</p>
+                    <ChipIcon /> <p className="font-semibold text-green-300">خروجی کد سخت‌افزار (Verilog)</p>
                 </button>
             </div>
           </details>

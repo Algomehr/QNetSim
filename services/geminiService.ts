@@ -145,6 +145,52 @@ ${circuitJson}`;
     }
 };
 
+export const generateHardwareCodeFromCircuit = async (circuitJson: string, language: 'verilog') => {
+    const prompt = `You are an expert in both quantum communication protocols and digital logic design for FPGAs. Your task is to analyze the provided quantum network JSON and, if it represents a QKD protocol like BB84, generate a synthesizable Verilog module to act as a controller for one of the end nodes (e.g., Alice or Bob).
+
+The Verilog module should perform the classical tasks of the BB84 protocol.
+
+**Instructions:**
+1.  **Analyze the Circuit:** Determine if the network topology (nodes like 'endNode', 'eavesdropper'; edges representing channels) corresponds to a BB84 QKD setup. If not, return a comment saying the circuit is not a recognized QKD protocol.
+2.  **Generate a Verilog Module:** If it is a BB84 setup, create a module named \`bb84_controller\`.
+3.  **Module I/O:**
+    -   **Inputs:** \`clk\` (50MHz clock), \`reset_n\` (active-low reset), \`start_protocol\` (a pulse to begin a round of N measurements), \`photon_value\` (the 0/1 result from a detector), \`photon_valid\` (indicates a photon was detected and its value is valid), \`other_party_bases\` (input bus for receiving the other party's basis choices during sifting), \`sifting_start\` (pulse to begin the sifting phase).
+    -   **Outputs:** \`basis_choice\` (output to control the local measurement/preparation basis, e.g., 0 for Z, 1 for X), \`sifted_key_bit\` (a single bit of the final key), \`sifted_key_valid\` (pulse indicating a new sifted key bit is available on the output), \`local_bases_out\` (bus to send local bases to the other party), \`protocol_busy\`.
+4.  **Internal Logic:**
+    -   **State Machine:** Implement a simple state machine with states like \`IDLE\`, \`GENERATE_BASES\`, \`AWAIT_SIFTING\`, \`SIFTING\`, \`OUTPUT_KEY\`.
+    -   **Basis Generation:** Use a Linear Feedback Shift Register (LFSR) as a pseudo-random number generator to choose the measurement/preparation basis. This is a common and efficient technique in FPGAs. Store the choices in a register array or small memory.
+    -   **Sifting Logic:** When \`sifting_start\` is asserted, compare the stored local basis choices with the \`other_party_bases\` input. If they match, store the corresponding measured photon value as part of the sifted key.
+    -   **Key Storage:** Store the generated basis choices, measured photon values, and the final sifted key in registers.
+5.  **Code Style:**
+    -   The code MUST be well-commented to explain what each part does (state machine, LFSR, sifting logic).
+    -   Use non-blocking assignments (\`<=\`) for sequential logic inside \`always @(posedge clk)\` blocks.
+    -   Your response MUST be only the Verilog code, with no explanations, backticks, or markdown formatting.
+
+**Circuit JSON:**
+${circuitJson}`;
+
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: "gemini-2.5-pro",
+            contents: prompt,
+        });
+        // The model might wrap the code in ```verilog ... ```, so let's clean that up.
+        let code = response.text.trim();
+        if (code.startsWith('```verilog')) {
+            code = code.substring(9);
+        } else if (code.startsWith('```')) {
+            code = code.substring(3);
+        }
+        if (code.endsWith('```')) {
+            code = code.substring(0, code.length - 3);
+        }
+        return code.trim();
+    } catch (error) {
+        console.error("Error generating hardware code from Gemini:", error);
+        throw new Error("Failed to generate hardware code from circuit.");
+    }
+};
+
 
 const protocolAnalysisSchema = {
     type: Type.OBJECT,
