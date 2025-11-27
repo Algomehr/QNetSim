@@ -18,7 +18,11 @@ const isGate = (type: string) => {
         ComponentType.CNOT,
         ComponentType.Phase,
         ComponentType.Rz,
-        ComponentType.Toffoli
+        ComponentType.Toffoli,
+        ComponentType.PhaseModulator, // New
+        ComponentType.BeamSplitter, // New
+        ComponentType.PolarizationRotator, // New
+        ComponentType.Interferometer, // New
     ].includes(type as ComponentType);
 };
 
@@ -44,11 +48,27 @@ const NodeProperties: React.FC<{
     : null;
   
   const angleDegrees = nodeData.angle ? (nodeData.angle * 180 / Math.PI).toFixed(0) : '0';
+  const phaseShiftDegrees = nodeData.phaseShift ? (nodeData.phaseShift * 180 / Math.PI).toFixed(0) : '0';
+  const polarizationRotatorAngleDegrees = nodeData.polarizationRotatorAngle ? (nodeData.polarizationRotatorAngle * 180 / Math.PI).toFixed(0) : '0';
   
   const handleAngleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const degrees = parseFloat(e.target.value);
     if (!isNaN(degrees)) {
         handleUpdate('angle', (degrees * Math.PI) / 180);
+    }
+  };
+
+  const handlePhaseShiftChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const degrees = parseFloat(e.target.value);
+    if (!isNaN(degrees)) {
+        handleUpdate('phaseShift', (degrees * Math.PI) / 180);
+    }
+  };
+
+  const handlePolarizationRotatorAngleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const degrees = parseFloat(e.target.value);
+    if (!isNaN(degrees)) {
+        handleUpdate('polarizationRotatorAngle', (degrees * Math.PI) / 180);
     }
   };
 
@@ -68,7 +88,7 @@ const NodeProperties: React.FC<{
         
         {/* Component-Specific Parameters */}
         <div className="border-t border-white/10 pt-4 space-y-4">
-        {node.type === ComponentType.EndNode && (
+        {(node.type === ComponentType.EndNode || node.type === ComponentType.Source) && (
           <>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">نقش گره</label>
@@ -76,6 +96,13 @@ const NodeProperties: React.FC<{
                   <option value="sender">فرستنده</option>
                   <option value="receiver">گیرنده</option>
                   <option value="generic">عمومی</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">نوع کدگذاری پایه</label>
+              <select value={nodeData.basisEncoding ?? 'polarization'} onChange={(e) => handleUpdate('basisEncoding', e.target.value as 'polarization' | 'phase')} className="w-full p-2 bg-white/5 border border-white/10 rounded-md text-sm">
+                  <option value="polarization">قطبش</option>
+                  <option value="phase">فاز</option>
               </select>
             </div>
           </>
@@ -95,6 +122,24 @@ const NodeProperties: React.FC<{
               <label className="block text-sm font-medium text-gray-300 mb-1">زمان T2 حافظه (ms): {nodeData.memoryT2 ?? 100}</label>
               <input type="range" min="1" max={(nodeData.memoryT1 ?? 1000) * 2} step="1" value={nodeData.memoryT2 ?? 100} onChange={(e) => handleUpdate('memoryT2', parseInt(e.target.value, 10))} />
             </div>
+          </>
+        )}
+
+        {(node.type === ComponentType.Detector || node.type === ComponentType.EndNode) && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">نوع آشکارساز</label>
+              <select value={nodeData.detectorType ?? 'polarization'} onChange={(e) => handleUpdate('detectorType', e.target.value as 'polarization' | 'phase_interferometer')} className="w-full p-2 bg-white/5 border border-white/10 rounded-md text-sm">
+                  <option value="polarization">قطبش</option>
+                  <option value="phase_interferometer">تداخل‌سنج فاز</option>
+              </select>
+            </div>
+            {nodeData.detectorType === 'phase_interferometer' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">اختلاف طول بازوی تداخل‌سنج (mm): {nodeData.interferometerArmLengthDifference ?? 10}</label>
+                <input type="number" min="1" max="1000" step="1" value={nodeData.interferometerArmLengthDifference ?? 10} onChange={(e) => handleUpdate('interferometerArmLengthDifference', parseFloat(e.target.value))} className="w-full p-2 bg-white/5 border border-white/10 rounded-md text-sm" />
+              </div>
+            )}
           </>
         )}
 
@@ -118,6 +163,24 @@ const NodeProperties: React.FC<{
                       <input type="number" value={angleDegrees} onChange={handleAngleChange} className="w-20 p-2 bg-white/5 border border-white/10 rounded-md text-sm text-center" />
                   </div>
               </div>
+            )}
+            {node.type === ComponentType.PhaseModulator && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">شیفت فاز (φ): {phaseShiftDegrees}°</label>
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                        <input type="range" min="0" max="360" step="1" value={phaseShiftDegrees} onChange={handlePhaseShiftChange} />
+                        <input type="number" value={phaseShiftDegrees} onChange={handlePhaseShiftChange} className="w-20 p-2 bg-white/5 border border-white/10 rounded-md text-sm text-center" />
+                    </div>
+                </div>
+            )}
+            {node.type === ComponentType.PolarizationRotator && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">زاویه چرخش قطبش (θ): {polarizationRotatorAngleDegrees}°</label>
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                        <input type="range" min="0" max="360" step="1" value={polarizationRotatorAngleDegrees} onChange={handlePolarizationRotatorAngleChange} />
+                        <input type="number" value={polarizationRotatorAngleDegrees} onChange={handlePolarizationRotatorAngleChange} className="w-20 p-2 bg-white/5 border border-white/10 rounded-md text-sm text-center" />
+                    </div>
+                </div>
             )}
           </>
         )}
@@ -176,6 +239,18 @@ const EdgeProperties: React.FC<{
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">تضعیف (dB/km): {edgeData?.attenuation ?? 0.2}</label>
                                 <input type="range" min="0.1" max="1" step="0.01" value={edgeData?.attenuation ?? 0.2} onChange={(e) => handleUpdate('attenuation', parseFloat(e.target.value))} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">دیسپرسیون (ps/(nm·km)): {edgeData?.dispersion ?? 0.1}</label>
+                                <input type="range" min="0" max="20" step="0.01" value={edgeData?.dispersion ?? 0.1} onChange={(e) => handleUpdate('dispersion', parseFloat(e.target.value))} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">اتلاف وابسته به قطبش (dB): {edgeData?.polarizationDependentLoss ?? 0.05}</label>
+                                <input type="range" min="0" max="1" step="0.01" value={edgeData?.polarizationDependentLoss ?? 0.05} onChange={(e) => handleUpdate('polarizationDependentLoss', parseFloat(e.target.value))} />
+                            </div>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">دما (K): {edgeData?.temperature ?? 295}</label>
+                                <input type="range" min="273" max="373" step="1" value={edgeData?.temperature ?? 295} onChange={(e) => handleUpdate('temperature', parseInt(e.target.value, 10))} />
                             </div>
                         </>
                      )}

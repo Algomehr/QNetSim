@@ -23,6 +23,34 @@ export const QUANTUM_COMPONENTS: QuantumComponent[] = [
     description: 'یک کانال کوانتومی را برای حمله شنود می‌کند.',
     category: 'گره‌های شبکه'
   },
+  {
+    id: 'phaseModulator',
+    type: ComponentType.PhaseModulator,
+    label: 'مدولاتور فاز',
+    description: 'فاز یک فوتون را تغییر می‌دهد (برای کدگذاری فاز).',
+    category: 'گره‌های شبکه'
+  },
+  {
+    id: 'beamSplitter',
+    type: ComponentType.BeamSplitter,
+    label: 'جداکننده پرتو',
+    description: 'پرتو نور را تقسیم می‌کند؛ برای تداخل‌سنجی استفاده می‌شود.',
+    category: 'گره‌های شبکه'
+  },
+  {
+    id: 'polarizationRotator',
+    type: ComponentType.PolarizationRotator,
+    label: 'چرخاننده قطبش',
+    description: 'زوایه قطبش یک فوتون را تغییر می‌دهد.',
+    category: 'گره‌های شبکه'
+  },
+  {
+    id: 'interferometer',
+    type: ComponentType.Interferometer,
+    label: 'تداخل‌سنج',
+    description: 'یک دستگاه برای اندازه‌گیری اختلاف فاز.',
+    category: 'گره‌های شبکه'
+  },
 
   // Circuit Components
   {

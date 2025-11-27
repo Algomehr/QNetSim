@@ -150,16 +150,16 @@ const repeaterTemplate: CircuitTemplate = {
     }
 };
 
-const bb84NoEveTemplate: CircuitTemplate = {
-  name: "پروتکل BB84 (کانال امن)",
-  description: "شبیه‌سازی BB84 بدون شنودگر، با نمایش اجزای آماده‌سازی و اندازه‌گیری.",
+const bb84PolarizationNoEveTemplate: CircuitTemplate = {
+  name: "پروتکل BB84 (قطبش، کانال امن)",
+  description: "شبیه‌سازی BB84 مبتنی بر قطبش بدون شنودگر، با نمایش اجزای آماده‌سازی و اندازه‌گیری.",
   category: "پروتکل‌های ارتباطی",
   circuit: {
     nodes: [
-      { id: 'bb84_q_source', type: ComponentType.Qubit, position: { x: 50, y: 200 }, data: { label: "منبع فوتون" } },
+      { id: 'bb84_q_source', type: ComponentType.Qubit, position: { x: 50, y: 200 }, data: { label: "منبع فوتون", basisEncoding: 'polarization' } },
       { id: 'bb84_h_alice', type: ComponentType.Hadamard, position: { x: 250, y: 200 }, data: { label: "آماده‌سازی مبنا" } },
       { id: 'bb84_h_bob', type: ComponentType.Hadamard, position: { x: 550, y: 200 }, data: { label: "انتخاب مبنا" } },
-      { id: 'bb84_measure_bob', type: ComponentType.Measure, position: { x: 750, y: 200 }, data: { label: "آشکارساز" } },
+      { id: 'bb84_measure_bob', type: ComponentType.Measure, position: { x: 750, y: 200 }, data: { label: "آشکارساز", detectorType: 'polarization' } },
     ],
     edges: [
       { id: 'e_bb84_s_ha', source: 'bb84_q_source', target: 'bb84_h_alice', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
@@ -169,17 +169,17 @@ const bb84NoEveTemplate: CircuitTemplate = {
   },
 };
 
-const bb84Template: CircuitTemplate = {
-  name: "پروتکل BB84 با شنودگر",
-  description: "شبیه‌سازی توزیع کلید کوانتومی با یک شنودگر در کانال.",
+const bb84PolarizationWithEveTemplate: CircuitTemplate = {
+  name: "پروتکل BB84 (قطبش، با شنودگر)",
+  description: "شبیه‌سازی توزیع کلید کوانتومی مبتنی بر قطبش با یک شنودگر در کانال.",
   category: "پروتکل‌های ارتباطی",
   circuit: {
     nodes: [
-      { id: 'bb84e_q_source', type: ComponentType.Qubit, position: { x: 50, y: 200 }, data: { label: "منبع فوتون" } },
+      { id: 'bb84e_q_source', type: ComponentType.Qubit, position: { x: 50, y: 200 }, data: { label: "منبع فوتون", basisEncoding: 'polarization' } },
       { id: 'bb84e_h_alice', type: ComponentType.Hadamard, position: { x: 250, y: 200 }, data: { label: "آماده‌سازی مبنا" } },
       { id: 'bb84e_eve', type: ComponentType.Eavesdropper, position: { x: 450, y: 200 }, data: { label: 'Eve (شنودگر)' } },
       { id: 'bb84e_h_bob', type: ComponentType.Hadamard, position: { x: 650, y: 200 }, data: { label: "انتخاب مبنا" } },
-      { id: 'bb84e_measure_bob', type: ComponentType.Measure, position: { x: 850, y: 200 }, data: { label: "آشکارساز" } },
+      { id: 'bb84e_measure_bob', type: ComponentType.Measure, position: { x: 850, y: 200 }, data: { label: "آشکارساز", detectorType: 'polarization' } },
     ],
     edges: [
       { id: 'e_bb84e_s_ha', source: 'bb84e_q_source', target: 'bb84e_h_alice', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
@@ -189,6 +189,35 @@ const bb84Template: CircuitTemplate = {
     ],
   },
 };
+
+const bb84PhaseBasedTemplate: CircuitTemplate = {
+  name: "پروتکل BB84 (فاز، کانال امن)",
+  description: "شبیه‌سازی BB84 مبتنی بر فاز با مدولاتورهای فاز و تداخل‌سنج.",
+  category: "پروتکل‌های ارتباطی",
+  circuit: {
+    nodes: [
+      { id: 'bb84p_source', type: ComponentType.Source, position: { x: 50, y: 200 }, data: { label: "منبع تک فوتونی", basisEncoding: 'phase' } },
+      { id: 'bb84p_alice_bs1', type: ComponentType.BeamSplitter, position: { x: 150, y: 100 }, data: { label: "BS آلیس ۱" } },
+      { id: 'bb84p_alice_pm', type: ComponentType.PhaseModulator, position: { x: 250, y: 100 }, data: { label: "PM آلیس", phaseShift: Math.PI / 2 } },
+      { id: 'bb84p_alice_bs2', type: ComponentType.BeamSplitter, position: { x: 350, y: 100 }, data: { label: "BS آلیس ۲" } },
+      
+      { id: 'bb84p_bob_bs1', type: ComponentType.BeamSplitter, position: { x: 450, y: 100 }, data: { label: "BS باب ۱" } },
+      { id: 'bb84p_bob_pm', type: ComponentType.PhaseModulator, position: { x: 550, y: 100 }, data: { label: "PM باب", phaseShift: 0 } },
+      { id: 'bb84p_bob_bs2', type: ComponentType.BeamSplitter, position: { x: 650, y: 100 }, data: { label: "BS باب ۲" } },
+      { id: 'bb84p_detector', type: ComponentType.Detector, position: { x: 750, y: 100 }, data: { label: "آشکارساز", detectorType: 'phase_interferometer', interferometerArmLengthDifference: 10 } },
+    ],
+    edges: [
+      { id: 'e_source_bs1', source: 'bb84p_source', target: 'bb84p_alice_bs1', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
+      { id: 'e_bs1_pm', source: 'bb84p_alice_bs1', target: 'bb84p_alice_pm', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
+      { id: 'e_pm_bs2', source: 'bb84p_alice_pm', target: 'bb84p_alice_bs2', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
+      { id: 'e_alice_bob_channel', source: 'bb84p_alice_bs2', target: 'bb84p_bob_bs1', animated: true, data: { type: 'quantum', length: 50, attenuation: 0.2, dispersion: 0.1, polarizationDependentLoss: 0.05, temperature: 295 } },
+      { id: 'e_bob_bs1_pm', source: 'bb84p_bob_bs1', target: 'bb84p_bob_pm', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
+      { id: 'e_bob_pm_bs2', source: 'bb84p_bob_pm', target: 'bb84p_bob_bs2', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
+      { id: 'e_bob_bs2_detector', source: 'bb84p_bob_bs2', target: 'bb84p_detector', animated: true, data: { type: 'quantum', length: 0, attenuation: 0 } },
+    ],
+  },
+};
+
 
 // --- الگوریتم‌های کوانتومی ---
 const deutschJozsaTemplate: CircuitTemplate = {
@@ -329,11 +358,15 @@ export const CIRCUIT_TEMPLATES: CircuitTemplate[] = [
     category: "پروتکل‌های ارتباطی",
   },
   {
-    ...bb84NoEveTemplate,
+    ...bb84PolarizationNoEveTemplate,
     category: "پروتکل‌های ارتباطی",
   },
   {
-    ...bb84Template,
+    ...bb84PolarizationWithEveTemplate,
+    category: "پروتکل‌های ارتباطی",
+  },
+  {
+    ...bb84PhaseBasedTemplate,
     category: "پروتکل‌های ارتباطی",
   },
    {

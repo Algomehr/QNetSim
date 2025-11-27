@@ -58,11 +58,23 @@ const getDefaultParameters = (type: ComponentType): Partial<NodeData> => {
         case ComponentType.Eavesdropper:
             return { attackStrategy: 'intercept_resend', basisChoiceBias: 0.5 };
         case ComponentType.EndNode:
-            return { role: 'generic', t1: 100, t2: 50, gateFidelity: 0.99 };
+            return { role: 'generic', t1: 100, t2: 50, gateFidelity: 0.99, basisEncoding: 'polarization' };
         case ComponentType.Repeater:
             return { swapFidelity: 0.95, memoryT1: 1000, memoryT2: 100 };
         case ComponentType.Measure:
             return {};
+        case ComponentType.Source:
+            return { photonType: 'single', wavelength: 1550, purity: 0.98, basisEncoding: 'polarization' };
+        case ComponentType.Detector:
+            return { efficiency: 0.9, darkCounts: 10, detectorType: 'polarization' };
+        case ComponentType.PhaseModulator:
+            return { phaseShift: 0, gateFidelity: 0.99 };
+        case ComponentType.BeamSplitter:
+            return { gateFidelity: 0.99 };
+        case ComponentType.PolarizationRotator:
+            return { polarizationRotatorAngle: 0, gateFidelity: 0.99 };
+        case ComponentType.Interferometer:
+            return { interferometerArmLengthDifference: 10, gateFidelity: 0.98 };
         default:
             return {};
     }
@@ -229,8 +241,8 @@ const App: React.FC = () => {
         if (!node || !parameter) return false;
         
         const currentValue = node.data[parameter];
-        // Use a small tolerance for floating point comparisons
-        if (typeof value === 'number') {
+        // Fix: Ensure both currentValue and value are numbers before arithmetic
+        if (typeof currentValue === 'number' && typeof value === 'number') {
           return Math.abs(currentValue - value) < 0.01;
         }
         return currentValue === value;
@@ -304,6 +316,8 @@ const App: React.FC = () => {
 
     const totalLength = quantumEdges.reduce((sum, edge) => sum + (edge.data?.length || 0), 0);
     const totalAttenuation = quantumEdges.reduce((sum, edge) => sum + (edge.data?.length || 0) * (edge.data?.attenuation || 0), 0);
+    const totalDispersion = quantumEdges.reduce((sum, edge) => sum + (edge.data?.length || 0) * (edge.data?.dispersion || 0), 0);
+    const totalPDL = quantumEdges.reduce((sum, edge) => sum + (edge.data?.polarizationDependentLoss || 0), 0);
     
     const SPEED_OF_LIGHT_IN_FIBER_KMS = 299792.458 / 1.44; 
     const estimatedLatency = (totalLength / SPEED_OF_LIGHT_IN_FIBER_KMS) * 1000; // in ms
@@ -320,6 +334,8 @@ const App: React.FC = () => {
       totalAttenuation,
       estimatedLatency,
       networkSurvivalProbability,
+      totalDispersion,
+      totalPDL,
     });
   }, [edges]);
 
@@ -341,7 +357,7 @@ const App: React.FC = () => {
 
   const onConnect = useCallback(
     (params: Connection) => {
-      setEdges((eds) => addEdge({ ...params, animated: true, type: 'smoothstep', data: { type: 'quantum', length: 10, attenuation: 0.2 } }, eds));
+      setEdges((eds) => addEdge({ ...params, animated: true, type: 'smoothstep', data: { type: 'quantum', length: 10, attenuation: 0.2, dispersion: 0.1, polarizationDependentLoss: 0.05, temperature: 295 } }, eds));
       triggerUserAction();
     },
     [setEdges]

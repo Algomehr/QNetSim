@@ -1,7 +1,7 @@
 import React from 'react';
 import { QUANTUM_COMPONENTS } from '../constants';
 import { ComponentType, QuantumComponent } from '../types';
-import { QubitIcon, HadamardIcon, CnotIcon, MeasureIcon, SourceIcon, DetectorIcon, PhaseIcon, RzIcon, XIcon, ToffoliIcon, EavesdropperIcon, EndNodeIcon, RepeaterIcon } from './icons/QuantumIcons';
+import { QubitIcon, HadamardIcon, CnotIcon, MeasureIcon, SourceIcon, DetectorIcon, PhaseIcon, RzIcon, XIcon, ToffoliIcon, EavesdropperIcon, EndNodeIcon, RepeaterIcon, PhaseModulatorIcon, BeamSplitterIcon, PolarizationRotatorIcon, InterferometerIcon } from './icons/QuantumIcons';
 
 const iconMap: Record<ComponentType, React.ReactNode> = {
     [ComponentType.Qubit]: <QubitIcon />,
@@ -17,6 +17,10 @@ const iconMap: Record<ComponentType, React.ReactNode> = {
     [ComponentType.Eavesdropper]: <EavesdropperIcon />,
     [ComponentType.EndNode]: <EndNodeIcon />,
     [ComponentType.Repeater]: <RepeaterIcon />,
+    [ComponentType.PhaseModulator]: <PhaseModulatorIcon />,
+    [ComponentType.BeamSplitter]: <BeamSplitterIcon />,
+    [ComponentType.PolarizationRotator]: <PolarizationRotatorIcon />,
+    [ComponentType.Interferometer]: <InterferometerIcon />,
     [ComponentType.Custom]: <div />,
 };
 

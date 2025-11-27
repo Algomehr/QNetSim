@@ -13,7 +13,7 @@ import ReactFlow, {
 } from 'reactflow';
 import { ComponentType } from '../types';
 import { CustomNode } from './nodes/CustomNode';
-import { QubitIcon, HadamardIcon, CnotIcon, MeasureIcon, SourceIcon, DetectorIcon, PhaseIcon, RzIcon, XIcon, ToffoliIcon, EavesdropperIcon, EndNodeIcon, RepeaterIcon } from './icons/QuantumIcons';
+import { QubitIcon, HadamardIcon, CnotIcon, MeasureIcon, SourceIcon, DetectorIcon, PhaseIcon, RzIcon, XIcon, ToffoliIcon, EavesdropperIcon, EndNodeIcon, RepeaterIcon, PhaseModulatorIcon, BeamSplitterIcon, PolarizationRotatorIcon, InterferometerIcon } from './icons/QuantumIcons';
 
 interface QuantumCanvasProps {
   nodes: Node[];
@@ -40,6 +40,10 @@ const iconMap: Record<ComponentType, React.ReactNode> = {
     [ComponentType.Eavesdropper]: <EavesdropperIcon />,
     [ComponentType.EndNode]: <EndNodeIcon />,
     [ComponentType.Repeater]: <RepeaterIcon />,
+    [ComponentType.PhaseModulator]: <PhaseModulatorIcon />,
+    [ComponentType.BeamSplitter]: <BeamSplitterIcon />,
+    [ComponentType.PolarizationRotator]: <PolarizationRotatorIcon />,
+    [ComponentType.Interferometer]: <InterferometerIcon />,
     [ComponentType.Custom]: <div />,
 };
 
@@ -78,6 +82,10 @@ export const QuantumCanvas: React.FC<QuantumCanvasProps> = ({
     eavesdropper: WrappedCustomNode,
     endNode: WrappedCustomNode,
     repeater: WrappedCustomNode,
+    phaseModulator: WrappedCustomNode,
+    beamSplitter: WrappedCustomNode,
+    polarizationRotator: WrappedCustomNode,
+    interferometer: WrappedCustomNode,
     custom: CustomNode,
   }), []);
 

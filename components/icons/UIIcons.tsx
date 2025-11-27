@@ -95,3 +95,18 @@ export const LengthIcon = () => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 15.75L3 12m0 0l3.75-3.75M3 12h18" />
     </svg>
 );
+
+export const DispersionIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5M3.75 10.5h16.5M3.75 13.5h16.5m-16.5 3h16.5m-16.5-7.5h16.5m-16.5-7.5h16.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12c0 2.21 1.007 4.13 2.5 5.39C7.893 18.23 9.87 19 12 19s4.107-.77 5.75-2.61c1.493-1.26 2.5-3.18 2.5-5.39" />
+    </svg>
+);
+
+export const PDLIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5V19.5M4.5 12H19.5" />
+        <circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5l-3 3M12 4.5l3 3M12 19.5l-3-3M12 19.5l3-3" />
+    </svg>
+);

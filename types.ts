@@ -15,6 +15,11 @@ export enum ComponentType {
   Eavesdropper = 'eavesdropper',
   EndNode = 'endNode',
   Repeater = 'repeater',
+  // New Network Components for Advanced Implementation
+  PhaseModulator = 'phaseModulator',
+  BeamSplitter = 'beamSplitter',
+  PolarizationRotator = 'polarizationRotator',
+  Interferometer = 'interferometer',
 }
 
 export interface EdgeData {
@@ -23,6 +28,10 @@ export interface EdgeData {
   attenuation: number; // in dB/km
   noiseType?: 'depolarizing' | 'dephasing';
   noiseProbability?: number; // 0 to 1
+  // New channel characteristics for realism
+  dispersion?: number; // in ps/(nm·km)
+  polarizationDependentLoss?: number; // in dB
+  temperature?: number; // in Kelvin
 }
 
 export interface NodeData {
@@ -35,14 +44,21 @@ export interface NodeData {
   photonType?: 'single' | 'entangled_pair';
   wavelength?: number; // in nm
   purity?: number; // 0 to 1
+  basisEncoding?: 'polarization' | 'phase'; // How qubits are encoded by source/endnode
 
   // Detector
   efficiency?: number; // 0 to 1
   darkCounts?: number; // in Hz
+  detectorType?: 'polarization' | 'phase_interferometer';
+  interferometerArmLengthDifference?: number; // in mm, for phase detection
 
-  // Gates (H, X, CNOT, S, Rz, Toffoli)
+  // Gates (H, X, CNOT, S, Rz, Toffoli) & New Gates
   gateFidelity?: number; // 0 to 1
   gateTime?: number; // in ns
+  phaseShift?: number; // For PhaseModulator, Rz gate, in radians
+
+  // Polarization Rotator
+  polarizationRotatorAngle?: number; // in radians
 
   // Qubit
   initialState?: 0 | 1;
@@ -155,6 +171,8 @@ export interface NetworkStats {
   totalAttenuation: number; // in dB
   estimatedLatency: number; // in ms
   networkSurvivalProbability: number; // 0 to 1
+  totalDispersion?: number; // in ps/nm
+  totalPDL?: number; // in dB
 }
 
 

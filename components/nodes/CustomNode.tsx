@@ -6,6 +6,7 @@ interface CustomNodeProps extends NodeProps {
   data: NodeData & {
     icon: ReactNode;
     isConnectable?: boolean;
+    // Fix: Changed 'string' to 'Position' for handle position type
     handles?: { type: 'source' | 'target'; position: Position; id: string }[];
   };
 }
@@ -16,9 +17,14 @@ const CustomNodeComponent: React.FC<CustomNodeProps> = ({ data }) => {
     { type: 'source', position: Position.Right, id: 'right' },
   ];
 
-  const displayLabel = typeof data.angle === 'number' 
-    ? `${data.label} (${(data.angle * 180 / Math.PI).toFixed(0)}°)`
-    : data.label;
+  let displayLabel = data.label;
+  if (typeof data.angle === 'number') {
+    displayLabel = `${data.label} (${(data.angle * 180 / Math.PI).toFixed(0)}°)`
+  } else if (typeof data.phaseShift === 'number') {
+    displayLabel = `${data.label} (${(data.phaseShift * 180 / Math.PI).toFixed(0)}°)`
+  } else if (typeof data.polarizationRotatorAngle === 'number') {
+    displayLabel = `${data.label} (${(data.polarizationRotatorAngle * 180 / Math.PI).toFixed(0)}°)`
+  }
 
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm border-2 border-cyan-500/60 rounded-xl shadow-lg shadow-cyan-500/20 w-36 h-28 flex flex-col items-center justify-center p-2 text-center transition-all duration-300 hover:border-cyan-400 hover:shadow-cyan-400/30 hover:scale-105 group">

@@ -16,7 +16,7 @@ const circuitSchema = {
                 type: Type.OBJECT,
                 properties: {
                     id: { type: Type.STRING },
-                    type: { type: Type.STRING, description: "Should be one of: 'qubit', 'hadamard', 'cnot', 'measure', 'phase', 'rz', 'x', 'toffoli', 'eavesdropper', 'endNode', 'repeater'" },
+                    type: { type: Type.STRING, description: "Should be one of: 'qubit', 'hadamard', 'cnot', 'measure', 'phase', 'rz', 'x', 'toffoli', 'eavesdropper', 'endNode', 'repeater', 'phaseModulator', 'beamSplitter', 'polarizationRotator', 'interferometer'" },
                     position: {
                         type: Type.OBJECT,
                         properties: {
@@ -43,6 +43,27 @@ const circuitSchema = {
                                     required: ['type', 'position', 'id']
                                 }
                            },
+                           photonType: { type: Type.STRING, description: "'single' or 'entangled_pair' for source nodes." },
+                           wavelength: { type: Type.NUMBER, description: "Wavelength in nm for source nodes." },
+                           purity: { type: Type.NUMBER, description: "Purity from 0 to 1 for source nodes." },
+                           basisEncoding: { type: Type.STRING, description: "How qubits are encoded: 'polarization' or 'phase'." },
+                           efficiency: { type: Type.NUMBER, description: "Efficiency from 0 to 1 for detector nodes." },
+                           darkCounts: { type: Type.NUMBER, description: "Dark counts in Hz for detector nodes." },
+                           detectorType: { type: Type.STRING, description: "'polarization' or 'phase_interferometer'." },
+                           interferometerArmLengthDifference: { type: Type.NUMBER, description: "Arm length difference in mm for phase interferometers." },
+                           gateFidelity: { type: Type.NUMBER, description: "Fidelity from 0 to 1 for gate nodes." },
+                           gateTime: { type: Type.NUMBER, description: "Gate time in ns for gate nodes." },
+                           phaseShift: { type: Type.NUMBER, description: "Phase shift in radians for phase modulators or Rz gates." },
+                           polarizationRotatorAngle: { type: Type.NUMBER, description: "Rotation angle in radians for polarization rotators." },
+                           initialState: { type: Type.NUMBER, description: "Initial state 0 or 1 for qubit nodes." },
+                           t1: { type: Type.NUMBER, description: "T1 time in microseconds for qubit/endNode/repeater memory." },
+                           t2: { type: Type.NUMBER, description: "T2 time in microseconds for qubit/endNode/repeater memory." },
+                           attackStrategy: { type: Type.STRING, description: "'intercept_resend' for eavesdropper nodes." },
+                           basisChoiceBias: { type: Type.NUMBER, description: "Bias from 0 to 1 for eavesdropper's basis choice." },
+                           role: { type: Type.STRING, description: "'sender', 'receiver', or 'generic' for endNode nodes." },
+                           swapFidelity: { type: Type.NUMBER, description: "Swap fidelity from 0 to 1 for repeater nodes." },
+                           memoryT1: { type: Type.NUMBER, description: "Memory T1 time in ms for repeater nodes." },
+                           memoryT2: { type: Type.NUMBER, description: "Memory T2 time in ms for repeater nodes." },
                         },
                         required: ['label'],
                     }
@@ -61,8 +82,22 @@ const circuitSchema = {
                     sourceHandle: { type: Type.STRING },
                     targetHandle: { type: Type.STRING },
                     animated: { type: Type.BOOLEAN },
+                    data: {
+                        type: Type.OBJECT,
+                        properties: {
+                            type: { type: Type.STRING, description: "'quantum' or 'classical'." },
+                            length: { type: Type.NUMBER, description: "Length in km." },
+                            attenuation: { type: Type.NUMBER, description: "Attenuation in dB/km." },
+                            noiseType: { type: Type.STRING, description: "'depolarizing' or 'dephasing'." },
+                            noiseProbability: { type: Type.NUMBER, description: "Noise probability from 0 to 1." },
+                            dispersion: { type: Type.NUMBER, description: "Group velocity dispersion in ps/(nm·km)." },
+                            polarizationDependentLoss: { type: Type.NUMBER, description: "Polarization dependent loss in dB." },
+                            temperature: { type: Type.NUMBER, description: "Temperature in Kelvin." },
+                        },
+                        required: ['type'],
+                    }
                 },
-                required: ['id', 'source', 'target'],
+                required: ['id', 'source', 'target', 'data'],
             }
         }
     },
@@ -72,6 +107,8 @@ const circuitSchema = {
 
 export const generateCircuitFromPrompt = async (prompt: string, forCode: boolean = false) => {
   let fullPrompt: string;
+  const availableNodeTypes = `'endNode', 'repeater', 'eavesdropper', 'qubit', 'hadamard', 'cnot', 'measure', 'phase', 'rz', 'x', 'toffoli', 'phaseModulator', 'beamSplitter', 'polarizationRotator', 'interferometer'`;
+
   if (forCode) {
       fullPrompt = `You are an expert quantum circuit visualizer. Parse the provided Qiskit or OpenQASM code and convert it into a JSON object representing a visual circuit diagram. The JSON must conform to the provided schema.
       - Position the nodes to create a clear, horizontally-laid-out circuit diagram. Start 'qubit' nodes at x=50, and increment x for subsequent gates. Maintain separate y positions for each qubit line.
@@ -89,13 +126,17 @@ export const generateCircuitFromPrompt = async (prompt: string, forCode: boolean
       \`\`\``;
   } else {
       fullPrompt = `You are an expert in quantum networking. Based on the user's request, generate a quantum network diagram. Represent the network as a JSON object that conforms to the provided schema. The user wants: '${prompt}'. 
-      Available node types are: 'endNode', 'repeater', 'eavesdropper', 'qubit', 'hadamard', 'cnot', 'measure', 'phase', 'rz', 'x', 'toffoli'.
+      Available node types are: ${availableNodeTypes}.
       - 'endNode' represents a user station like Alice or Bob.
       - 'repeater' represents a quantum repeater for long-distance communication.
-      - For simple circuits, use the standard gates. For network protocols, use the network nodes.
+      - 'eavesdropper' represents an entity like Eve attempting to intercept communication.
+      - 'phaseModulator', 'beamSplitter', 'polarizationRotator', 'interferometer' are for more detailed optical setups.
+      - For simple circuits, use the standard gates. For network protocols, use the network nodes and specialized optical components.
       - 'x' is the Pauli-X (or NOT) gate. It flips a qubit's state.
       - 'toffoli' is the CCNOT gate. It's a 3-qubit gate.
       - 'rz' is a rotation gate around the Z-axis. If you use it, you can specify a rotation 'angle' in radians in its data property. For example, to create a T gate, use an 'rz' gate with angle: ${Math.PI / 4}.
+      - When creating edges, especially for quantum channels, include realistic 'length', 'attenuation', 'dispersion', 'polarizationDependentLoss', and 'temperature' in the 'data' property. Default values for these parameters should be reasonable (e.g., length=10km, attenuation=0.2dB/km, dispersion=0.1ps/(nm·km), PDL=0.05dB, temperature=295K).
+      - If the user explicitly mentions "polarization" or "phase" encoding, set 'basisEncoding' on relevant source/endNode components. Use 'detectorType' and 'interferometerArmLengthDifference' for phase-based detectors.
       Provide positions for the nodes that make the diagram clear and readable on a 2D canvas, laid out horizontally. Ensure all node and edge IDs are unique strings.`;
   }
 
@@ -255,7 +296,7 @@ const analysisSchema = {
         },
         errorSourceAnalysis: {
             type: Type.STRING,
-            description: "A detailed analysis in Persian of the primary sources of error. For networks, this MUST focus on channel loss (attenuation), repeater imperfections (swap fidelity, memory decoherence), and source/detector inefficiencies."
+            description: "A detailed analysis in Persian of the primary sources of error. For networks, this MUST focus on channel loss (attenuation, dispersion, PDL), repeater imperfections (swap fidelity, memory decoherence), and source/detector inefficiencies, as well as gate errors."
         },
         optimizationSuggestions: {
             type: Type.STRING,
@@ -342,8 +383,8 @@ const getModeSpecificInstructions = (mode: AnalysisMode): string => {
       *** Analysis Focus: SECURITY ***
       - Your primary objective is to perform a security analysis, assuming the network might be a Quantum Key Distribution (QKD) protocol.
       - You MUST prioritize filling out the 'protocolAnalysis' section of the JSON output.
-      - The calculation of the Quantum Bit Error Rate (QBER) is critical. It must be based on a comparison between the sender's (Alice) and receiver's (Bob) sifted keys, factoring in channel noise and any eavesdropper (Eve) activity.
-      - The 'securityAssessment' must be detailed, explaining whether Eve's presence was detectable from the QBER and why.
+      - The calculation of the Quantum Bit Error Rate (QBER) is critical. It must be based on a comparison between the sender's (Alice) and receiver's (Bob) sifted keys, factoring in channel noise, detector characteristics, and any eavesdropper (Eve) activity.
+      - The 'securityAssessment' must be detailed, explaining whether Eve's presence was detectable from the QBER and why, also considering different encoding schemes (polarization vs. phase).
       - The 'keys' object must be populated with sample bit and basis strings for Alice, Bob, and Eve (if present) to illustrate the protocol's stages.
       - Other sections like detailed state vectors are secondary. Focus on the results relevant to security.`;
     case 'performance':
@@ -353,7 +394,7 @@ const getModeSpecificInstructions = (mode: AnalysisMode): string => {
       - You MUST prioritize filling out the 'networkPerformance' and 'protocolTrace' sections of the JSON output. The protocol trace is mandatory.
       - Key metrics to calculate are: 'endToEndFidelity' of the shared quantum state, 'successProbability' of the entire protocol, 'keyRate' (if applicable), and 'latency'.
       - The 'protocolTrace' should log key events, especially probabilistic ones like photon loss in channels and entanglement swap failures/successes at repeaters.
-      - The 'resultsAnalysis' and 'errorSourceAnalysis' must focus on how physical parameters (channel length, attenuation, repeater fidelity) directly impact the performance metrics. Provide a bottleneck analysis.`;
+      - The 'resultsAnalysis' and 'errorSourceAnalysis' must focus on how physical parameters (channel length, attenuation, dispersion, PDL, repeater fidelity, detector efficiency) directly impact the performance metrics. Provide a bottleneck analysis.`;
     case 'state':
       return `
       *** Analysis Focus: QUANTUM STATE ***
@@ -368,8 +409,8 @@ const getModeSpecificInstructions = (mode: AnalysisMode): string => {
       *** Analysis Focus: ERROR BUDGET & OPTIMIZATION ***
       - Your primary objective is to identify and quantify all significant sources of error in the network.
       - You MUST prioritize filling out the 'errorSourceAnalysis' and 'optimizationSuggestions' sections of the JSON output. These must be extremely detailed.
-      - In 'errorSourceAnalysis', create a "budget" that attributes percentages of the total fidelity loss or QBER to specific components (e.g., "Channel 1 loss: 40% of errors", "Repeater 1 swap infidelity: 25% of errors", "Detector inefficiency: 15% of errors").
-      - In 'optimizationSuggestions', provide concrete, actionable advice. For instance, "Reducing the attenuation on the 50km channel from 0.2 dB/km to 0.18 dB/km would yield the largest performance gain, improving end-to-end fidelity by an estimated 5%."
+      - In 'errorSourceAnalysis', create a "budget" that attributes percentages of the total fidelity loss or QBER to specific components (e.g., "Channel 1 loss (attenuation/dispersion/PDL): 40% of errors", "Repeater 1 swap infidelity: 25% of errors", "Detector inefficiency: 15% of errors", "Gate errors: 5%").
+      - In 'optimizationSuggestions', provide concrete, actionable advice. For instance, "Reducing the attenuation on the 50km channel from 0.2 dB/km to 0.18 dB/km would yield the largest performance gain, improving end-to-end fidelity by an estimated 5%." Also consider suggestions related to dispersion compensation, temperature control, and choice of encoding (polarization vs. phase).
       - The 'resultsAnalysis' should also be framed from the perspective of how errors impacted the outcome.
       - Other sections like detailed theoretical background are less important.`;
     case 'educational':
@@ -377,10 +418,10 @@ const getModeSpecificInstructions = (mode: AnalysisMode): string => {
       *** Analysis Focus: EDUCATIONAL EXPLANATION (FOR BEGINNERS) ***
       - Your primary objective is to explain the quantum network and its results in a simple, clear, and pedagogical manner, suitable for an absolute beginner or university undergraduate.
       - You MUST prioritize simple language. Use analogies to explain complex concepts. For example, 'superposition is like a spinning coin, it's both heads and tails at once until it lands'. 'Entanglement is like a pair of "magic" coins; if one lands heads, the other instantly becomes tails, no matter how far apart they are.'
-      - **Define all key terms**: Explicitly define 'qubit', 'superposition', 'entanglement', 'measurement', etc., in the 'theoreticalBackground'.
+      - **Define all key terms**: Explicitly define 'qubit', 'superposition', 'entanglement', 'measurement', 'polarization', 'phase', 'dispersion', etc., in the 'theoreticalBackground'.
       - **Explain the 'Why'**: In the 'protocolTrace' or 'stepByStepExplanation', don't just state what happens. Explain the *purpose* of each gate. For example: "The Hadamard gate is applied here to put the qubit into superposition, which is the crucial first step for creating entanglement."
       - The 'resultsAnalysis' must be simplified. Avoid jargon. Focus on the high-level meaning. For example, instead of a deep dive into the density matrix, explain *why* the final state is mixed (e.g., "Because some photons were lost in the fiber optic cable, our final entangled state isn't perfect. This imperfection, which we call a 'mixed' state, reduces the quality of our quantum connection.").
-      - Omit highly technical data like the full 'densityMatrix' string unless it's essential to illustrate a key point, and if you do, explain what it represents. The ideal 'finalStateVector' is sufficient for most educational purposes.`;
+      - Omit highly technical data like the full 'densityMatrix' string unless it's essential to illustrate a key point, and if you do, explain what it represents. The ideal 'finalStateVector' is sufficient for most educational purposes. Compare and contrast polarization-based and phase-based encoding in BB84 if both types of components are present, explaining their basic principles.`;
     case 'comprehensive':
     default:
       return `
@@ -403,27 +444,29 @@ export const analyzeCircuitWithGemini = async (circuitJson: string, settings: Si
     
     *** Core Simulation Instructions ***
     You MUST model the physical properties of the network realistically.
-    1.  **Quantum Channels (Edges):** Each edge has 'length' (km) and 'attenuation' (dB/km) properties.
+    1.  **Quantum Channels (Edges):** Each edge has 'length' (km), 'attenuation' (dB/km), 'dispersion' (ps/(nm·km)), 'polarizationDependentLoss' (dB), and 'temperature' (K) properties.
         -   You MUST calculate the photon survival probability for each channel using the formula: P_survival = 10^(-(attenuation * length) / 10).
-        -   This probability determines if a qubit is lost during transmission, which is a primary source of error and latency (due to required retries).
+        -   You MUST consider the effects of 'dispersion' (e.g., pulse broadening, time-of-arrival jitter) and 'polarizationDependentLoss' (e.g., degradation of polarization encoding fidelity) on the transmitted qubits.
+        -   'Temperature' can influence both attenuation and dispersion, model this subtly.
+        -   These probabilities and physical effects determine if a qubit is lost, its state is degraded, and contribute to latency (due to required retries).
     2.  **Repeater Nodes:** These nodes perform entanglement swapping. This is a probabilistic operation. You must model its 'swapFidelity', which degrades the quality of the entangled state even on success. Also consider its internal 'memoryT1'/'memoryT2' for decoherence if a qubit must be stored.
-    3.  **End Nodes & Other Components:** Use the component-specific parameters provided in their 'data' objects (e.g., 'purity' for a source within an EndNode, 'efficiency' for a detector). These are high-priority. For any parameter not specified on a component, you may fall back to the global settings if provided.
+    3.  **End Nodes & Other Components:** Use the component-specific parameters provided in their 'data' objects (e.g., 'purity' for a source, 'efficiency' for a detector, 'basisEncoding' for how qubits are prepared/measured, 'detectorType' for phase vs. polarization detection, 'phaseShift' for modulators). These are high-priority. For any parameter not specified on a component, you may fall back to the global settings if provided.
     4.  **Simulation Goal:** The primary goal is usually to establish a high-fidelity entangled pair between two distant end nodes (e.g., Alice and Bob) or to execute a QKD protocol like BB84. Your entire analysis should revolve around the success and quality of this goal.
-    5.  **Noise Model:** The simulation MUST be noisy, considering all the factors above (channel loss, gate/swap infidelity, decoherence). The global settings ('gateErrorProbability', 't1', 't2', etc.) should be applied as a baseline noise layer on top of the network-specific effects.
+    5.  **Noise Model:** The simulation MUST be noisy, considering all the factors above (channel loss, dispersion, PDL, gate/swap infidelity, decoherence, detector inefficiencies). The global settings ('gateErrorProbability', 't1', 't2', etc.) should be applied as a baseline noise layer on top of the network-specific effects.
     
     *** Output Generation Instructions ***
     Your response MUST be a single JSON object that conforms to the provided schema.
     -   **protocolTrace / stepByStepExplanation:** Depending on the analysis mode, one of these is critical. For network-level analysis (performance, security, comprehensive), provide a detailed, chronological 'protocolTrace'. For 'state' analysis, a 'stepByStepExplanation' is preferred. The trace should log events like: "Alice's EndNode generates a pair," "Photon transmitted through Channel 1," "Photon is LOST in Channel 1 (Probabilistic event)," "Protocol restarts," "Repeater 1 attempts entanglement swap," "Swap succeeds but reduces fidelity to 0.92."
     -   **networkPerformance:** For relevant modes, you MUST calculate and provide the key network metrics. The 'endToEndFidelity' of the final distributed state is the most important output. For QKD, 'keyRate' is also essential.
-    -   **resultsAnalysis & errorSourceAnalysis:** Your analysis must be from a NETWORK perspective. Explain HOW channel length, repeater fidelity, and other parameters contributed to the final performance metrics. For example: "The 100km total distance resulted in a low P_survival of 0.01, which was the main bottleneck for the key rate. The repeater's swap fidelity of 0.95 was the second-largest contributor to the final end-to-end fidelity drop."
+    -   **resultsAnalysis & errorSourceAnalysis:** Your analysis must be from a NETWORK perspective. Explain HOW channel length, attenuation, dispersion, PDL, repeater fidelity, and other parameters contributed to the final performance metrics. For example: "The 100km total distance resulted in a low P_survival of 0.01, which was the main bottleneck for the key rate. The channel's dispersion of X caused significant pulse broadening, further degrading fidelity. The repeater's swap fidelity of 0.95 was the second-largest contributor to the final end-to-end fidelity drop."
     -   **measurementCounts:** Based on the noisy simulation, generate 'measurementCounts' for ${settings.shots} total shots. The distribution should reflect the final, imperfect state.
     -   **densityMatrix:** Provide the final density matrix for the end-to-end state (e.g., the 2-qubit state shared by Alice and Bob).
 
     *** QKD Protocol Analysis (if applicable) ***
     If the network implements a protocol like BB84:
     -   Your simulation must explicitly model the transmission, eavesdropping (if Eve is present), and sifting stages.
-    -   The **QBER** calculation must be realistic, factoring in channel noise, detector dark counts, and Eve's disturbance.
-    -   In 'securityAssessment', explain how the network's physical properties affect security. A long, lossy channel makes it harder to distinguish Eve's influence from natural noise.`;
+    -   The **QBER** calculation must be realistic, factoring in channel noise (attenuation, dispersion, PDL), detector dark counts, and Eve's disturbance.
+    -   In 'securityAssessment', explain how the network's physical properties affect security. A long, lossy channel with high dispersion makes it harder to distinguish Eve's influence from natural noise. Discuss the impact of chosen encoding (polarization vs. phase) on security and implementation complexity.`;
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({

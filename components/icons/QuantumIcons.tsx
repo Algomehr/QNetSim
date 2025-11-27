@@ -97,3 +97,46 @@ export const RepeaterIcon = () => (
         <circle cx="12" cy="12" r="2.5" fill="currentColor" />
     </svg>
 );
+
+export const PhaseModulatorIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-3l3 3 3-3M6 12h12m-3-3l3 3-3 3" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+        <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        <text x="12" y="14" fontSize="8" textAnchor="middle" fill="currentColor" fontWeight="bold">φ</text>
+    </svg>
+);
+
+export const BeamSplitterIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM12 12a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM12.75 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM7.5 18a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 12L8 4M16 20L8 12M12 4V20" />
+        <line x1="16" y1="4" x2="8" y2="12" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="8" y1="4" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 2" />
+        <line x1="16" y1="12" x2="8" y2="20" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="8" y1="12" x2="16" y2="20" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 2" />
+        <line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+);
+
+export const PolarizationRotatorIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <rect x="5" y="5" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.5l3.5 3.5M12 6.5L8.5 10M12 6.5V17.5" />
+        <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        <text x="12" y="13" fontSize="8" textAnchor="middle" fill="currentColor" fontWeight="bold">θ</text>
+    </svg>
+);
+
+export const InterferometerIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7M12 5L5 12l7 7" />
+        <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="12" y1="5" x2="19" y2="12" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="12" y1="19" x2="19" y2="12" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="12" y1="5" x2="5" y2="12" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="12" y1="19" x2="5" y2="12" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        <text x="12" y="14" fontSize="8" textAnchor="middle" fill="currentColor" fontWeight="bold">λ</text>
+    </svg>
+);

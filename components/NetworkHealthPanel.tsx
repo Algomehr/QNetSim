@@ -1,6 +1,6 @@
 import React from 'react';
 import { NetworkStats } from '../types';
-import { AttenuationIcon, LatencyIcon, ProbabilityIcon, LengthIcon } from './icons/UIIcons';
+import { AttenuationIcon, LatencyIcon, ProbabilityIcon, LengthIcon, DispersionIcon, PDLIcon } from './icons/UIIcons';
 
 interface NetworkHealthPanelProps {
   stats: NetworkStats | null;
@@ -49,10 +49,22 @@ export const NetworkHealthPanel: React.FC<NetworkHealthPanelProps> = ({ stats })
             color="bg-orange-500/30 text-orange-300"
         />
         <StatCard 
+            icon={<DispersionIcon />} 
+            label="دیسپرسیون کل" 
+            value={`${stats.totalDispersion?.toFixed(2) ?? 'N/A'} ps/nm`}
+            color="bg-teal-500/30 text-teal-300"
+        />
+        <StatCard 
+            icon={<PDLIcon />} 
+            label="اتلاف وابسته به قطبش" 
+            value={`${stats.totalPDL?.toFixed(2) ?? 'N/A'} dB`}
+            color="bg-purple-500/30 text-purple-300"
+        />
+        <StatCard 
             icon={<LatencyIcon />} 
             label="تخمین تأخیر" 
             value={`${stats.estimatedLatency.toFixed(3)} ms`}
-            color="bg-purple-500/30 text-purple-300"
+            color="bg-indigo-500/30 text-indigo-300"
         />
         <StatCard 
             icon={<ProbabilityIcon />} 
