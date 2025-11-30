@@ -110,3 +110,36 @@ export const PDLIcon = () => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5l-3 3M12 4.5l3 3M12 19.5l-3-3M12 19.5l3-3" />
     </svg>
 );
+
+export const ThermalNoiseIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+);
+
+export const TurbulenceIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 20c-1.663 0-3-1.34-3-3 0-1.663 1.337-3 3-3s3 1.337 3 3c0 1.663-1.337 3-3 3zm10 0c-1.663 0-3-1.34-3-3 0-1.663 1.337-3 3-3s3 1.337 3 3c0 1.663-1.337 3-3 3zm-5-10c-1.663 0-3-1.34-3-3s1.337-3 3-3 3 1.337 3 3c0 1.663-1.337 3-3 3z"/>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 17l-3-3m7 3l3-3m-1-4l-3-3"/>
+    </svg>
+);
+
+export const FadingIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18M4.5 12h15M6.75 6.75l10.5 10.5M6.75 17.25l10.5-10.5"/>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12c0 2.21-1.79 4-4 4s-4-1.79-4-4 1.79-4 4-4 4 1.79 4 4zM3 12c0 2.21 1.79 4 4 4s4-1.79 4-4-1.79-4-4-4-4 1.79-4 4z"/>
+    </svg>
+);
+
+export const BandwidthIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM12 12a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM12.75 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM7.5 18a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 12L8 4M16 20L8 12M12 4V20" />
+    </svg>
+);
+
+export const ClassicalLatencyIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);

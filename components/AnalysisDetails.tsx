@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { AnalysisResult } from '../types';
+import { AnalysisResult, ErrorContribution, SweepResult } from '../types';
 import { ProbabilityChart } from './visualizations/ProbabilityChart';
 import { DensityMatrixViewer } from './visualizations/DensityMatrixViewer';
 import { ShotDistributionChart } from './visualizations/ShotDistributionChart';
-import { HintonDiagram } from './visualizations/HintonDiagram'; // Import new component
-import { DataExport } from './DataExport'; // Import new component
+import { HintonDiagram } from './visualizations/HintonDiagram';
+import { DataExport } from './DataExport';
 import { ProtocolSecurityPanel } from './ProtocolSecurityPanel';
+import { ErrorBudgetChart } from './visualizations/ErrorBudgetChart'; // New import
+import { ParameterSweepChart } from './visualizations/ParameterSweepChart'; // New import
 
 interface AnalysisReportProps {
   result: AnalysisResult;
@@ -27,8 +29,11 @@ const TabButton: React.FC<{ title: string; isActive: boolean; onClick: () => voi
 
 export const AnalysisDetails: React.FC<AnalysisReportProps> = ({ result }) => {
   const [activeTab, setActiveTab] = useState('summary');
-  const hasAdvancedResults = result.errorSourceAnalysis && result.optimizationSuggestions;
+  const hasAdvancedResults = result.errorSourceAnalysis && (typeof result.errorSourceAnalysis !== 'string' || result.errorSourceAnalysis.length > 0) && result.optimizationSuggestions;
   const hasProtocolResults = result.protocolAnalysis;
+  const hasSweepResults = result.sweepResults && result.sweepResults.length > 0;
+  const hasWignerQFunction = result.wignerQFunctionDescription && result.wignerQFunctionDescription.length > 0;
+
 
   const renderContent = () => {
     switch (activeTab) {
@@ -124,6 +129,16 @@ export const AnalysisDetails: React.FC<AnalysisReportProps> = ({ result }) => {
                         <HintonDiagram matrixString={result.densityMatrix} />
                     </div>
                 )}
+
+                {hasWignerQFunction && (
+                  <div className="border-t border-white/10 pt-3">
+                    <h4 className="font-semibold text-gray-200 mb-2">توصیف تابع ویگنر/Q (Wigner/Q-function)</h4>
+                    <p className="leading-relaxed text-gray-300 whitespace-pre-wrap text-sm">{result.wignerQFunctionDescription}</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                        (تجسم گرافیکی پیشرفته این توابع نیاز به ابزارهای تخصصی دارد.)
+                    </p>
+                  </div>
+                )}
              </div>
         );
       case 'data': // New data and export tab
@@ -164,17 +179,44 @@ export const AnalysisDetails: React.FC<AnalysisReportProps> = ({ result }) => {
       case 'security':
         return result.protocolAnalysis ? <ProtocolSecurityPanel analysis={result.protocolAnalysis} /> : null;
       case 'advanced':
+        const errorAnalysisData = typeof result.errorSourceAnalysis !== 'string' 
+          ? result.errorSourceAnalysis 
+          : (result.errorSourceAnalysis ? [{ source: 'General Errors', contribution: 100, description: result.errorSourceAnalysis }] : []);
+        
         return (
             <div className="space-y-4 text-sm">
                 <div>
                     <h4 className="font-semibold text-gray-200 mb-2">تحلیل منابع خطا</h4>
-                    <p className="leading-relaxed text-gray-300 whitespace-pre-wrap">{result.errorSourceAnalysis}</p>
+                    {errorAnalysisData && errorAnalysisData.length > 0 ? (
+                        <ErrorBudgetChart data={errorAnalysisData as ErrorContribution[]} />
+                    ) : (
+                        <p className="leading-relaxed text-gray-300 whitespace-pre-wrap">{result.errorSourceAnalysis}</p>
+                    )}
                 </div>
                 <div className="border-t border-white/10 pt-3">
                     <h4 className="font-semibold text-gray-200 mb-2">پیشنهادات بهینه‌سازی</h4>
                     <p className="leading-relaxed text-gray-300 whitespace-pre-wrap">{result.optimizationSuggestions}</p>
                 </div>
             </div>
+        );
+      case 'sweep': // New tab for parameter sweep results
+        return hasSweepResults ? (
+          <div className="space-y-4 text-sm">
+            <h4 className="font-semibold text-gray-200 mb-2">نتایج پیمایش پارامتر</h4>
+            {result.sweepResults?.map((sweep, index) => (
+              <div key={index} className="bg-black/20 p-3 rounded-lg border border-white/10">
+                <h5 className="font-bold text-cyan-300 mb-2">پارامتر پیمایش شده: {sweep.parameter} {sweep.unit ? `(${sweep.unit})` : ''}</h5>
+                <ParameterSweepChart data={sweep} />
+              </div>
+            ))}
+            <p className="text-xs text-gray-500 mt-2">
+              (نمودارهای تعاملی پیشرفته در اینجا قابل ادغام هستند.)
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-gray-400">نتیجه‌ای از پیمایش پارامتر یافت نشد.</p>
+          </div>
         );
       default:
         return null;
@@ -193,6 +235,7 @@ export const AnalysisDetails: React.FC<AnalysisReportProps> = ({ result }) => {
           {result.potentialApplications && <TabButton title="کاربردها" isActive={activeTab === 'applications'} onClick={() => setActiveTab('applications')} />}
           {hasProtocolResults && <TabButton title="تحلیل امنیتی" isActive={activeTab === 'security'} onClick={() => setActiveTab('security')} />}
           {hasAdvancedResults && <TabButton title="تحلیل پیشرفته" isActive={activeTab === 'advanced'} onClick={() => setActiveTab('advanced')} />}
+          {hasSweepResults && <TabButton title="پیمایش پارامتر" isActive={activeTab === 'sweep'} onClick={() => setActiveTab('sweep')} />}
         </nav>
       </div>
       <div className="p-1 sm:p-4">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { QUANTUM_COMPONENTS } from '../constants';
 import { ComponentType, QuantumComponent } from '../types';
-import { QubitIcon, HadamardIcon, CnotIcon, MeasureIcon, SourceIcon, DetectorIcon, PhaseIcon, RzIcon, XIcon, ToffoliIcon, EavesdropperIcon, EndNodeIcon, RepeaterIcon, PhaseModulatorIcon, BeamSplitterIcon, PolarizationRotatorIcon, InterferometerIcon } from './icons/QuantumIcons';
+import { QubitIcon, HadamardIcon, CnotIcon, MeasureIcon, SourceIcon, DetectorIcon, PhaseIcon, RzIcon, XIcon, ToffoliIcon, EavesdropperIcon, EndNodeIcon, RepeaterIcon, PhaseModulatorIcon, BeamSplitterIcon, PolarizationRotatorIcon, InterferometerIcon, WaveplateIcon, PolarizerIcon, PockelsCellIcon, EOMIcon, CustomIcon } from './icons/QuantumIcons';
 
 const iconMap: Record<ComponentType, React.ReactNode> = {
     [ComponentType.Qubit]: <QubitIcon />,
@@ -21,7 +21,11 @@ const iconMap: Record<ComponentType, React.ReactNode> = {
     [ComponentType.BeamSplitter]: <BeamSplitterIcon />,
     [ComponentType.PolarizationRotator]: <PolarizationRotatorIcon />,
     [ComponentType.Interferometer]: <InterferometerIcon />,
-    [ComponentType.Custom]: <div />,
+    [ComponentType.Waveplate]: <WaveplateIcon />,
+    [ComponentType.Polarizer]: <PolarizerIcon />,
+    [ComponentType.PockelsCell]: <PockelsCellIcon />,
+    [ComponentType.EOM]: <EOMIcon />,
+    [ComponentType.Custom]: <CustomIcon />,
 };
 
 const onDragStart = (event: React.DragEvent, nodeType: ComponentType, label: string) => {

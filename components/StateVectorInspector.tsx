@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Node } from 'reactflow';
-import { AnalysisResult, NodeData } from '../types';
+import { AnalysisResult, NodeData, ProtocolTraceEvent } from '../types';
 
 interface StateVectorInspectorProps {
     selectedNode: Node<NodeData> | null;
@@ -27,7 +27,8 @@ const parseComplex = (s: string): { real: number; imag: number } => {
         return { real: parseFloat(match[1]), imag: parseFloat(match[2] + (match[3] || '1')) };
     }
     if (s.endsWith('i')) {
-        return { real: 0, imag: parseFloat(s.replace('i', '') || '1') };
+        const imagPart = s.replace('i', '');
+        return { real: 0, imag: parseFloat(imagPart === '+' ? '1' : imagPart === '-' ? '-1' : imagPart || '1') };
     }
     return { real: parseFloat(s), imag: 0 };
 };
@@ -36,7 +37,12 @@ const parseComplex = (s: string): { real: number; imag: number } => {
 const parseStateVector = (vector: string): ParsedState[] => {
     if (!vector) return [];
     
-    return vector.split(/(?=[+-])/).map(term => term.trim()).filter(Boolean).map(term => {
+    // Split by basis ket to isolate terms
+    const terms = vector.split(/(?=[+-]\s*\d*\.?\d*\|\d+⟩)|(?=[+-]\s*\|\d+⟩)/g) // Split by new complex number/sign + |basis>
+                  .map(term => term.trim())
+                  .filter(Boolean);
+    
+    return terms.map(term => {
         const parts = term.split('|');
         if (parts.length < 2) return null;
 
@@ -70,83 +76,109 @@ const PhaseWheel: React.FC<{ phase: number, size: number }> = ({ phase, size }) 
 }
 
 export const StateVectorInspector: React.FC<StateVectorInspectorProps> = ({ selectedNode, simulationResult }) => {
-    
-    const currentStep: Step | null = useMemo(() => {
-        if (!simulationResult || !selectedNode) return null;
-        
-        const step = simulationResult.stepByStepExplanation?.find(s => s.nodeId === selectedNode.id);
-        
-        if (step) {
-            return {
-                nodeId: step.nodeId,
-                nodeLabel: step.gateName,
-                stateVector: step.stateVectorAfter
-            };
+    const [currentTraceIndex, setCurrentTraceIndex] = useState(0);
+
+    // Reset index when a new simulation result comes in or when no result
+    useEffect(() => {
+        setCurrentTraceIndex(0);
+    }, [simulationResult]);
+
+    const protocolTrace = simulationResult?.protocolTrace || simulationResult?.stepByStepExplanation;
+    const hasTimeline = protocolTrace && protocolTrace.length > 0;
+
+    const displayedTraceEvent: ProtocolTraceEvent | null = useMemo(() => {
+        if (!hasTimeline) return null;
+        return protocolTrace[currentTraceIndex];
+    }, [hasTimeline, protocolTrace, currentTraceIndex]);
+
+    const displayedStateVector = useMemo(() => {
+        if (displayedTraceEvent?.state) {
+            return displayedTraceEvent.state;
         }
-
-        // If no direct step, check if it's a measurement node which represents the final state.
-        if (selectedNode.type === 'measure' && simulationResult.finalStateVector) {
-            return {
-                nodeId: selectedNode.id,
-                nodeLabel: 'وضعیت نهایی',
-                stateVector: simulationResult.finalStateVector
-            }
+        // Fallback for when trace event doesn't have state, but a node is selected
+        if (!hasTimeline && selectedNode) {
+            const step = simulationResult?.stepByStepExplanation?.find(s => s.nodeId === selectedNode.id);
+            if (step) return step.stateVectorAfter;
+            if (selectedNode.type === 'measure' && simulationResult?.finalStateVector) return simulationResult.finalStateVector;
         }
+        return '';
+    }, [displayedTraceEvent, hasTimeline, selectedNode, simulationResult]);
 
-        return null;
 
-    }, [selectedNode, simulationResult]);
-
-    const parsedStates = useMemo(() => parseStateVector(currentStep?.stateVector || ''), [currentStep]);
+    const parsedStates = useMemo(() => parseStateVector(displayedStateVector || ''), [displayedStateVector]);
 
     const renderContent = () => {
         if (!simulationResult) {
             return <p className="text-xs text-gray-500">برای مشاهده وضعیت سیستم، ابتدا تحلیل را اجرا کنید.</p>;
         }
-        if (!selectedNode) {
-            return <p className="text-xs text-gray-400">یک قطعه را برای بازرسی بردار حالت آن انتخاب کنید.</p>;
-        }
-         if (!currentStep) {
-            return <p className="text-xs text-gray-500">داده‌ای برای این مرحله یافت نشد. ممکن است این قطعه در مسیر اصلی مدار نباشد.</p>;
+        
+        if (hasTimeline && displayedTraceEvent) {
+             return (
+                <div className="w-full">
+                    <p className="text-sm font-semibold text-gray-200 mb-2">
+                        وضعیت سیستم در رویداد {currentTraceIndex + 1}: <span className="text-cyan-300">{displayedTraceEvent.event}</span>
+                        <span className="text-xs text-gray-400 font-normal mr-2"> @ گره: {displayedTraceEvent.nodeLabel}</span>
+                    </p>
+                    <p className="text-xs text-gray-300 mb-2">{displayedTraceEvent.description}</p>
+                    {parsedStates.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            {parsedStates.map(({ amplitude, phase, basis }, index) => {
+                                const probability = amplitude * amplitude;
+                                return (
+                                    <div key={index} className="flex items-center space-x-2 space-x-reverse bg-black/20 p-2 rounded-lg">
+                                        <PhaseWheel phase={phase} size={20} />
+                                        <div className="flex flex-col text-right">
+                                            <span dir="ltr" className="font-mono text-cyan-300 text-sm">{basis}</span>
+                                            <span className="text-xs text-gray-400">
+                                            دامنه: {amplitude.toFixed(3)}
+                                            </span>
+                                        </div>
+                                        <div className="w-24 h-5 bg-gray-700 rounded-full overflow-hidden ml-2">
+                                            <div 
+                                                className="h-full bg-cyan-500 transition-all duration-300"
+                                                style={{ width: `${probability * 100}%`}}
+                                            ></div>
+                                        </div>
+                                        <span className="text-xs font-mono text-gray-300 w-12 text-left">
+                                            {(probability * 100).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    ) : (
+                         <p className="text-xs text-gray-500">بردار حالتی برای این گام یافت نشد یا وضعیت تغییرات حالت کوانتومی ندارد.</p>
+                    )}
+                </div>
+            );
         }
 
-        return (
-            <div className="w-full">
-                <p className="text-sm font-semibold text-gray-200 mb-2">
-                    وضعیت سیستم پس از: <span className="text-cyan-300">{currentStep.nodeLabel}</span>
-                </p>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    {parsedStates.map(({ amplitude, phase, basis }, index) => {
-                         const probability = amplitude * amplitude;
-                         return (
-                            <div key={index} className="flex items-center space-x-2 space-x-reverse bg-black/20 p-2 rounded-lg">
-                                <PhaseWheel phase={phase} size={20} />
-                                <div className="flex flex-col text-right">
-                                    <span dir="ltr" className="font-mono text-cyan-300 text-sm">{basis}</span>
-                                    <span className="text-xs text-gray-400">
-                                       دامنه: {amplitude.toFixed(3)}
-                                    </span>
-                                </div>
-                                <div className="w-24 h-5 bg-gray-700 rounded-full overflow-hidden ml-2">
-                                    <div 
-                                        className="h-full bg-cyan-500 transition-all duration-300"
-                                        style={{ width: `${probability * 100}%`}}
-                                    ></div>
-                                </div>
-                                <span className="text-xs font-mono text-gray-300 w-12 text-left">
-                                    {(probability * 100).toFixed(1)}%
-                                </span>
-                            </div>
-                         )
-                    })}
-                </div>
-            </div>
-        );
+        if (selectedNode) {
+            return <p className="text-xs text-gray-400">یک قطعه را برای بازرسی بردار حالت آن انتخاب کنید.</p>;
+        }
+         return <p className="text-xs text-gray-500">داده‌ای برای این مرحله یافت نشد.</p>;
     }
     
     return (
-        <div className="h-28 flex-shrink-0 bg-gray-900/60 backdrop-blur-xl border-b border-white/10 p-3 flex items-center justify-center">
+        <div className="h-auto flex-shrink-0 bg-gray-900/60 backdrop-blur-xl border-b border-white/10 p-3 flex flex-col items-center justify-center">
             {renderContent()}
+            {hasTimeline && (
+                <div className="w-full mt-3">
+                    <label htmlFor="timeline-slider" className="block text-xs font-medium text-gray-400 mb-1">
+                        نمای خط زمانی: گام {currentTraceIndex + 1} از {protocolTrace!.length}
+                    </label>
+                    <input
+                        id="timeline-slider"
+                        type="range"
+                        min="0"
+                        max={(protocolTrace?.length || 1) - 1}
+                        step="1"
+                        value={currentTraceIndex}
+                        onChange={(e) => setCurrentTraceIndex(parseInt(e.target.value, 10))}
+                        className="w-full"
+                    />
+                </div>
+            )}
         </div>
     )
 }

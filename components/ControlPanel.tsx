@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { CircuitData, SimulationSettings, CouplingMap, CircuitTemplate, Tutorial } from '../types';
+import { CircuitData, SimulationSettings, CouplingMap, CircuitTemplate, Tutorial, ParameterSweepSettings, AnalysisMode } from '../types';
+import { Node, Edge } from 'reactflow'; // Corrected: Import Node and Edge from reactflow
 import { CIRCUIT_TEMPLATES } from '../CircuitTemplates';
 import { TUTORIALS } from '../tutorials';
 import { MagicWandIcon, ClearIcon, CodeIcon, ChipIcon } from './icons/UIIcons';
+import { ParameterSweepSection } from './ParameterSweepSection'; // Import new component
 
 interface ControlPanelProps {
   onGenerate: (prompt: string) => void;
@@ -13,8 +15,12 @@ interface ControlPanelProps {
   onImportCode: () => void;
   onExportCode: () => void;
   onExportHardwareCode: () => void;
+  onRunParameterSweep: (sweepSettings: ParameterSweepSettings, mode: AnalysisMode) => void; // New prop
   isGenerating: boolean;
+  isSweeping: boolean; // New prop
   settings: SimulationSettings;
+  nodes: Node[]; // New prop
+  edges: Edge[]; // New prop
 }
 
 const groupedTemplates = CIRCUIT_TEMPLATES.reduce((acc, template) => {
@@ -27,7 +33,7 @@ const groupedTemplates = CIRCUIT_TEMPLATES.reduce((acc, template) => {
 
 const groupedTutorials = TUTORIALS.reduce((acc, tutorial) => {
   if (!acc[tutorial.category]) {
-    acc[tutorial.category] = [];
+    acc[tutorial.category] = []; // Corrected: Used tutorial.category instead of template.category
   }
   acc[tutorial.category].push(tutorial);
   return acc;
@@ -43,8 +49,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onImportCode,
   onExportCode,
   onExportHardwareCode,
+  onRunParameterSweep,
   isGenerating, 
-  settings
+  isSweeping,
+  settings,
+  nodes,
+  edges,
 }) => {
   const [prompt, setPrompt] = useState<string>('');
   
@@ -71,11 +81,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               placeholder="مثال: یک مدار برای آماده‌سازی حالت بِل بساز"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              disabled={isGenerating}
+              disabled={isGenerating || isSweeping}
             />
             <button
               onClick={handleGenerateClick}
-              disabled={isGenerating}
+              disabled={isGenerating || isSweeping}
               className="mt-2 w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {isGenerating ? (
@@ -100,6 +110,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                   <input
                       type="range" min="1" max="8192" step="1" value={settings.shots}
                       onChange={(e) => handleSettingChange('shots', parseInt(e.target.value, 10))}
+                      disabled={isGenerating || isSweeping}
                   />
               </div>
           </div>
@@ -114,6 +125,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                       </label>
                       <input type="range" min="0" max="5" step="0.1" value={settings.gateErrorProbability * 100}
                           onChange={(e) => handleSettingChange('gateErrorProbability', parseFloat(e.target.value) / 100)}
+                          disabled={isGenerating || isSweeping}
                       />
                   </div>
                   <div>
@@ -122,6 +134,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                       </label>
                       <input type="range" min="0" max="10" step="0.1" value={settings.decoherenceStrength * 100}
                           onChange={(e) => handleSettingChange('decoherenceStrength', parseFloat(e.target.value) / 100)}
+                          disabled={isGenerating || isSweeping}
                       />
                   </div>
               </div>
@@ -136,6 +149,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         <input type="checkbox" className="sr-only peer"
                             checked={settings.enableAdvanced}
                             onChange={(e) => handleSettingChange('enableAdvanced', e.target.checked)}
+                            disabled={isGenerating || isSweeping}
                         />
                         <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-cyan-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
                     </label>
@@ -145,7 +159,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             <div className={`mt-4 space-y-4 transition-opacity ${settings.enableAdvanced ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
                 <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1">نقشه اتصال (Coupling Map)</label>
-                    <select value={settings.couplingMap} onChange={(e) => handleSettingChange('couplingMap', e.target.value as CouplingMap)} className="w-full p-2 bg-white/5 border border-white/10 rounded-md text-sm focus:ring-2 focus:ring-cyan-400 focus:outline-none">
+                    <select value={settings.couplingMap} onChange={(e) => handleSettingChange('couplingMap', e.target.value as CouplingMap)} className="w-full p-2 bg-white/5 border border-white/10 rounded-md text-sm focus:ring-2 focus:ring-cyan-400 focus:outline-none" disabled={isGenerating || isSweeping}>
                         <option value="fully-connected">اتصال کامل (ایده‌آل)</option>
                         <option value="linear-chain">زنجیره خطی</option>
                     </select>
@@ -156,6 +170,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     </label>
                      <input type="range" min="1" max="500" step="1" value={settings.t1}
                           onChange={(e) => handleSettingChange('t1', parseInt(e.target.value, 10))}
+                          disabled={isGenerating || isSweeping}
                       />
                 </div>
                  <div>
@@ -164,6 +179,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     </label>
                      <input type="range" min="1" max={settings.t1 * 2} step="1" value={settings.t2}
                           onChange={(e) => handleSettingChange('t2', parseInt(e.target.value, 10))}
+                          disabled={isGenerating || isSweeping}
                       />
                 </div>
                 <div>
@@ -172,10 +188,20 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     </label>
                     <input type="range" min="0" max="10" step="0.1" value={settings.readoutError * 100}
                         onChange={(e) => handleSettingChange('readoutError', parseFloat(e.target.value) / 100)}
+                        disabled={isGenerating || isSweeping}
                     />
                 </div>
             </div>
           </details>
+          
+          {/* Parameter Sweep Section */}
+          <ParameterSweepSection 
+            nodes={nodes}
+            edges={edges}
+            onRunSweep={onRunParameterSweep}
+            isSweeping={isSweeping}
+            isBusy={isGenerating || isSweeping}
+          />
 
           {/* Developer Tools Section */}
           <details className="py-4 group">
@@ -187,12 +213,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <button
                     onClick={onExportCode}
                     className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-indigo-500/20 hover:border-indigo-400/50 flex items-center justify-center gap-2"
+                    disabled={isGenerating || isSweeping}
                 >
                     <CodeIcon /> <p className="font-semibold text-indigo-300">خروجی به کد کوانتومی</p>
                 </button>
                  <button
                     onClick={onImportCode}
                     className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-sky-500/20 hover:border-sky-400/50 flex items-center justify-center gap-2"
+                    disabled={isGenerating || isSweeping}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-sky-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M14 4l-4 16m-4-4l-4-4 4-4M18 8l4 4-4 4" />
@@ -202,6 +230,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <button
                     onClick={onExportHardwareCode}
                     className="w-full text-center p-3 bg-gray-700/50 border border-gray-600 rounded-lg transition-all duration-200 hover:bg-green-500/20 hover:border-green-400/50 flex items-center justify-center gap-2"
+                    disabled={isGenerating || isSweeping}
                 >
                     <ChipIcon /> <p className="font-semibold text-green-300">خروجی کد سخت‌افزار (Verilog)</p>
                 </button>
@@ -221,6 +250,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                               key={tutorial.id}
                               onClick={() => onStartTutorial(tutorial)}
                               className="w-full text-right p-3 bg-white/5 border border-white/10 rounded-lg transition-all duration-200 hover:bg-sky-500/20 hover:border-sky-400/50"
+                              disabled={isGenerating || isSweeping}
                             >
                               <p className="font-semibold text-sky-300">{tutorial.name}</p>
                               <p className="text-xs text-gray-400">{tutorial.description}</p>
@@ -246,6 +276,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                               key={template.name}
                               onClick={() => onLoadTemplate(template.circuit)}
                               className="w-full text-right p-3 bg-white/5 border border-white/10 rounded-lg transition-all duration-200 hover:bg-indigo-500/20 hover:border-indigo-400/50"
+                              disabled={isGenerating || isSweeping}
                             >
                               <p className="font-semibold text-indigo-300">{template.name}</p>
                               <p className="text-xs text-gray-400">{template.description}</p>
@@ -262,7 +293,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             <h3 className="font-semibold text-gray-200 mb-3 text-base">عملیات</h3>
              <button 
                   onClick={onClear}
-                  className="w-full bg-red-700/80 text-white font-bold py-2 px-4 rounded-md hover:bg-red-600 transition-colors flex items-center justify-center gap-2">
+                  className="w-full bg-red-700/80 text-white font-bold py-2 px-4 rounded-md hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                  disabled={isGenerating || isSweeping}
+                  >
                   <ClearIcon /> پاک کردن بوم
             </button>
           </div>

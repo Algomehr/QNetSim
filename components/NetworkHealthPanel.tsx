@@ -1,6 +1,6 @@
 import React from 'react';
 import { NetworkStats } from '../types';
-import { AttenuationIcon, LatencyIcon, ProbabilityIcon, LengthIcon, DispersionIcon, PDLIcon } from './icons/UIIcons';
+import { AttenuationIcon, LatencyIcon, ProbabilityIcon, LengthIcon, DispersionIcon, PDLIcon, ThermalNoiseIcon, TurbulenceIcon, FadingIcon, BandwidthIcon, ClassicalLatencyIcon } from './icons/UIIcons';
 
 interface NetworkHealthPanelProps {
   stats: NetworkStats | null;
@@ -59,6 +59,36 @@ export const NetworkHealthPanel: React.FC<NetworkHealthPanelProps> = ({ stats })
             label="اتلاف وابسته به قطبش" 
             value={`${stats.totalPDL?.toFixed(2) ?? 'N/A'} dB`}
             color="bg-purple-500/30 text-purple-300"
+        />
+        <StatCard 
+            icon={<ThermalNoiseIcon />} 
+            label="نویز حرارتی کل" 
+            value={`${stats.totalThermalNoise?.toExponential(2) ?? 'N/A'} W`}
+            color="bg-yellow-500/30 text-yellow-300"
+        />
+        <StatCard 
+            icon={<TurbulenceIcon />} 
+            label="تأثیر تلاطم فضای آزاد" 
+            value={`${stats.totalFreeSpaceTurbulenceImpact?.toFixed(2) ?? 'N/A'} Factor`}
+            color="bg-amber-500/30 text-amber-300"
+        />
+        <StatCard 
+            icon={<FadingIcon />} 
+            label="تأثیر فیدینگ فضای آزاد" 
+            value={`${stats.totalFreeSpaceFadingImpact?.toFixed(2) ?? 'N/A'} Factor`}
+            color="bg-red-500/30 text-red-300"
+        />
+        <StatCard 
+            icon={<BandwidthIcon />} 
+            label="پهنای باند کلاسیک" 
+            value={`${stats.totalClassicalBandwidth?.toFixed(0) ?? 'N/A'} Mbps`}
+            color="bg-sky-500/30 text-sky-300"
+        />
+        <StatCard 
+            icon={<ClassicalLatencyIcon />} 
+            label="تاخیر کلاسیک" 
+            value={`${stats.totalClassicalLatency?.toFixed(0) ?? 'N/A'} ms`}
+            color="bg-pink-500/30 text-pink-300"
         />
         <StatCard 
             icon={<LatencyIcon />} 

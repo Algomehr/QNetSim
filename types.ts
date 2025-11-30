@@ -20,6 +20,11 @@ export enum ComponentType {
   BeamSplitter = 'beamSplitter',
   PolarizationRotator = 'polarizationRotator',
   Interferometer = 'interferometer',
+  // New Photonic Components
+  Waveplate = 'waveplate',
+  Polarizer = 'polarizer',
+  PockelsCell = 'pockelsCell',
+  EOM = 'eom',
 }
 
 export interface EdgeData {
@@ -32,6 +37,18 @@ export interface EdgeData {
   dispersion?: number; // in ps/(nm·km)
   polarizationDependentLoss?: number; // in dB
   temperature?: number; // in Kelvin
+  // Advanced Channel Noise Parameters
+  thermalNoiseSpectralDensity?: number; // e.g., in W/Hz
+  channelDepolarizingRate?: number; // 0 to 1, per km
+  channelDephasingRate?: number; // 0 to 1, per km
+  // Advanced Channel Types for realism
+  channelType?: 'fiber' | 'free_space';
+  atmosphericTurbulence?: 'weak' | 'moderate' | 'strong'; // For free-space channels
+  fadingSeverity?: 'none' | 'low' | 'medium' | 'high'; // For free-space channels
+  // New: Classical Channel Parameters
+  classicalBandwidth?: number; // in Mbps
+  classicalLatency?: number; // in ms
+  classicalErrorRate?: number; // 0 to 1
 }
 
 export interface NodeData {
@@ -45,12 +62,21 @@ export interface NodeData {
   wavelength?: number; // in nm
   purity?: number; // 0 to 1
   basisEncoding?: 'polarization' | 'phase'; // How qubits are encoded by source/endnode
+  // Advanced Source Parameters
+  photonStatistics?: 'poisson' | 'sub_poisson' | 'heralded';
+  indistinguishability?: number; // 0 to 1
+  spectralPurity?: number; // 0 to 1
+  repetitionRate?: number; // in MHz
 
   // Detector
   efficiency?: number; // 0 to 1
   darkCounts?: number; // in Hz
   detectorType?: 'polarization' | 'phase_interferometer';
   interferometerArmLengthDifference?: number; // in mm, for phase detection
+  // Advanced Detector Noise
+  deadTime?: number; // in ns
+  afterpulsingProbability?: number; // 0 to 1
+  crosstalkProbability?: number; // 0 to 1, simplified for multi-channel detectors
 
   // Gates (H, X, CNOT, S, Rz, Toffoli) & New Gates
   gateFidelity?: number; // 0 to 1
@@ -60,10 +86,17 @@ export interface NodeData {
   // Polarization Rotator
   polarizationRotatorAngle?: number; // in radians
 
-  // Qubit
+  // Qubit, EndNode, Repeater (memory)
   initialState?: 0 | 1;
   t1?: number; // in microseconds
   t2?: number; // in microseconds
+  // Advanced Qubit/Memory Noise
+  amplitudeDampingRate?: number; // 0 to 1, per unit time/gate
+  phaseDampingRate?: number; // 0 to 1, per unit time/gate
+  // Advanced Repeater Memory Parameters
+  storageTime?: number; // in microseconds, for repeater memory
+  storageEfficiency?: number; // 0 to 1, for repeater memory
+  memoryNoiseType?: 'coherent_dephasing' | 'incoherent_depolarizing';
 
   // Eavesdropper
   attackStrategy?: 'intercept_resend';
@@ -76,6 +109,27 @@ export interface NodeData {
   swapFidelity?: number; // 0 to 1
   memoryT1?: number; // in ms
   memoryT2?: number; // in ms
+
+  // Waveplate
+  retardance?: number; // in radians or fractions of lambda (e.g., 0.5 for half-wave)
+  fastAxisAngle?: number; // in degrees
+
+  // Polarizer
+  extinctionRatio?: number; // e.g., 10000:1, stored as ratio
+  transmissionAxisAngle?: number; // in degrees
+
+  // Pockels Cell
+  voltage?: number; // applied voltage
+  halfWaveVoltage?: number; // voltage for pi phase shift
+
+  // EOM (Electro-Optic Modulator)
+  modulationIndex?: number; // modulation depth
+  modulationFrequency?: number; // in Hz
+  // For Custom nodes
+  numQubits?: number; // How many qubits the custom gate acts on
+  customGateMatrix?: string; // JSON string of complex 2D array: [[[re, im], [re, im]], ...]
+  customNoiseModel?: string; // Text description of custom noise
+  customDescription?: string; // User-friendly description
 }
 
 export interface QuantumComponent {
@@ -173,6 +227,48 @@ export interface NetworkStats {
   networkSurvivalProbability: number; // 0 to 1
   totalDispersion?: number; // in ps/nm
   totalPDL?: number; // in dB
+  totalThermalNoise?: number; // sum of thermal noise per channel
+  totalFreeSpaceTurbulenceImpact?: number; // Simplified cumulative impact
+  totalFreeSpaceFadingImpact?: number; // Simplified cumulative impact
+  // New: Classical Channel Stats
+  totalClassicalBandwidth?: number; // in Mbps
+  totalClassicalLatency?: number; // in ms
+}
+
+// New interface for structured error contributions
+export interface ErrorContribution {
+  source: string; // e.g., "Channel 1 Attenuation"
+  contribution: number; // Percentage, e.g., 25 for 25%
+  description: string; // Explanation of the error
+}
+
+// New interfaces for Parameter Sweeping
+export type SweepTargetType = 'node' | 'edge';
+export type SweepParameter = keyof NodeData | keyof EdgeData | 'qber' | 'fidelity' | 'keyRate' | 'latency';
+
+export interface ParameterSweepSettings {
+  parameter: SweepParameter;
+  targetId: string | null; // ID of the node or edge to sweep, null for global/network-wide
+  targetType: SweepTargetType | null;
+  range: {
+    start: number;
+    end: number;
+    step: number;
+  };
+}
+
+export interface SweepResultEntry {
+  value: number; // The parameter value for this simulation run
+  qber?: number;
+  fidelity?: number;
+  keyRate?: number;
+  latency?: number;
+}
+
+export interface SweepResult {
+  parameter: SweepParameter;
+  unit?: string; // e.g., "km", "%", "dB"
+  results: SweepResultEntry[];
 }
 
 
@@ -191,7 +287,7 @@ export interface AnalysisResult {
   protocolTrace?: ProtocolTraceEvent[]; // Added for network simulation
   resultsAnalysis: string;
   // New fields for advanced analysis
-  errorSourceAnalysis?: string;
+  errorSourceAnalysis?: ErrorContribution[] | string; // Can be structured or string
   optimizationSuggestions?: string;
   potentialApplications?: string;
   
@@ -203,6 +299,8 @@ export interface AnalysisResult {
   measurementCounts?: { state: string; count: number }[];
   protocolAnalysis?: ProtocolAnalysis; // For QKD protocols like BB84
   networkPerformance?: NetworkPerformanceMetrics; // Added for network simulation
+  wignerQFunctionDescription?: string; // Textual description for advanced visualizations
+  sweepResults?: SweepResult[]; // Results from parameter sweeping
 }
 
 // --- Tutorial System Types ---
@@ -228,7 +326,7 @@ export interface TutorialStep {
   }[];
   expectedParameter?: { 
     nodeId: string;
-    parameter: keyof NodeData; 
+    parameter: keyof NodeData | keyof EdgeData; 
     value: any;
   };
   expectedClickValue?: AnalysisMode;

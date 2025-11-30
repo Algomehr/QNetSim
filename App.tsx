@@ -21,8 +21,9 @@ import { NetworkHealthPanel } from './components/NetworkHealthPanel';
 import { TutorialPanel } from './components/TutorialPanel';
 import { CodeModal } from './components/CodeModal';
 import { generateCircuitFromPrompt, analyzeCircuitWithGemini, generateCodeFromCircuit, generateHardwareCodeFromCircuit } from './services/geminiService';
-import { CircuitData, AnalysisResult, AnalysisStatus, NodeData, ComponentType, SimulationSettings, EdgeData, AnalysisMode, NetworkStats, Tutorial } from './types';
+import { CircuitData, AnalysisResult, AnalysisStatus, NodeData, ComponentType, SimulationSettings, EdgeData, AnalysisMode, NetworkStats, Tutorial, ParameterSweepSettings, SweepResult, SweepResultEntry, SweepParameter, SweepTargetType } from './types';
 import { ToolsIcon, AnalyzeIcon, CanvasIcon, CloseIcon, ComponentsIcon, DesignIcon } from './components/icons/UIIcons';
+import { getDefaultParameters } from './constants'; // Import getDefaultParameters
 
 let id = 0;
 const getId = () => `dndnode_${id++}`;
@@ -43,42 +44,6 @@ const toffoliHandles = [
   { type: 'source' as const, position: Position.Bottom, id: 'ctl2_out' },
 ];
 
-const getDefaultParameters = (type: ComponentType): Partial<NodeData> => {
-    switch (type) {
-        case ComponentType.Qubit:
-            return { initialState: 0, t1: 100, t2: 50 };
-        case ComponentType.Hadamard:
-        case ComponentType.PauliX:
-        case ComponentType.Phase:
-        case ComponentType.CNOT:
-        case ComponentType.Toffoli:
-            return { gateFidelity: 0.999, gateTime: 10 };
-        case ComponentType.Rz:
-            return { angle: Math.PI / 2, gateFidelity: 0.999, gateTime: 10 };
-        case ComponentType.Eavesdropper:
-            return { attackStrategy: 'intercept_resend', basisChoiceBias: 0.5 };
-        case ComponentType.EndNode:
-            return { role: 'generic', t1: 100, t2: 50, gateFidelity: 0.99, basisEncoding: 'polarization' };
-        case ComponentType.Repeater:
-            return { swapFidelity: 0.95, memoryT1: 1000, memoryT2: 100 };
-        case ComponentType.Measure:
-            return {};
-        case ComponentType.Source:
-            return { photonType: 'single', wavelength: 1550, purity: 0.98, basisEncoding: 'polarization' };
-        case ComponentType.Detector:
-            return { efficiency: 0.9, darkCounts: 10, detectorType: 'polarization' };
-        case ComponentType.PhaseModulator:
-            return { phaseShift: 0, gateFidelity: 0.99 };
-        case ComponentType.BeamSplitter:
-            return { gateFidelity: 0.99 };
-        case ComponentType.PolarizationRotator:
-            return { polarizationRotatorAngle: 0, gateFidelity: 0.99 };
-        case ComponentType.Interferometer:
-            return { interferometerArmLengthDifference: 10, gateFidelity: 0.98 };
-        default:
-            return {};
-    }
-};
 
 type CodeLanguage = 'qiskit' | 'openqasm';
 
@@ -121,6 +86,10 @@ const App: React.FC = () => {
   const [isHardwareModalOpen, setIsHardwareModalOpen] = useState(false);
   const [isExportingHardwareCode, setIsExportingHardwareCode] = useState(false);
   const [exportedHardwareCode, setExportedHardwareCode] = useState('');
+
+  // --- Parameter Sweep State ---
+  const [isSweeping, setIsSweeping] = useState(false);
+  const [parameterSweepSettings, setParameterSweepSettings] = useState<ParameterSweepSettings | null>(null);
 
 
   // --- Tutorial State ---
@@ -240,12 +209,24 @@ const App: React.FC = () => {
         const node = nodes.find(n => n.id === nodeId);
         if (!node || !parameter) return false;
         
-        const currentValue = node.data[parameter];
-        // Fix: Ensure both currentValue and value are numbers before arithmetic
-        if (typeof currentValue === 'number' && typeof value === 'number') {
-          return Math.abs(currentValue - value) < 0.01;
+        // Check if parameter is on node.data
+        if (parameter in node.data) {
+          const currentValue = node.data[parameter as keyof NodeData];
+          if (typeof currentValue === 'number' && typeof value === 'number') {
+            return Math.abs(currentValue - value) < 0.01;
+          }
+          return currentValue === value;
+        } 
+        // Check if parameter is on selectedEdge.data (if an edge is selected)
+        else if (selectedEdge && parameter in selectedEdge.data!) { // Check for edge parameters
+          const currentEdgeValue = selectedEdge.data![parameter as keyof EdgeData];
+          if (typeof currentEdgeValue === 'number' && typeof value === 'number') {
+            return Math.abs(currentEdgeValue - value) < 0.01;
+          }
+          return currentEdgeValue === value;
         }
-        return currentValue === value;
+
+        return false;
       }
       return false; // Return false if no state-based validation matches
     };
@@ -259,7 +240,7 @@ const App: React.FC = () => {
       setTimeout(() => setTutorialError(false), 500); // Reset for animation
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, isTutorialModeActive, currentStep, advanceTutorial, resolveNodeId, userActionTrigger]);
+  }, [nodes, edges, isTutorialModeActive, currentStep, advanceTutorial, resolveNodeId, userActionTrigger, selectedEdge]);
   
   // Reset user action trigger after it's been processed
   useEffect(() => {
@@ -309,7 +290,9 @@ const App: React.FC = () => {
   // Effect to calculate network health stats on the client-side
   useEffect(() => {
     const quantumEdges = edges.filter(edge => edge.data?.type === 'quantum');
-    if (quantumEdges.length === 0) {
+    const classicalEdges = edges.filter(edge => edge.data?.type === 'classical');
+
+    if (quantumEdges.length === 0 && classicalEdges.length === 0) {
       setNetworkStats(null);
       return;
     }
@@ -318,14 +301,59 @@ const App: React.FC = () => {
     const totalAttenuation = quantumEdges.reduce((sum, edge) => sum + (edge.data?.length || 0) * (edge.data?.attenuation || 0), 0);
     const totalDispersion = quantumEdges.reduce((sum, edge) => sum + (edge.data?.length || 0) * (edge.data?.dispersion || 0), 0);
     const totalPDL = quantumEdges.reduce((sum, edge) => sum + (edge.data?.polarizationDependentLoss || 0), 0);
+    const totalThermalNoise = quantumEdges.reduce((sum, edge) => sum + (edge.data?.thermalNoiseSpectralDensity || 0) * (edge.data?.length || 0), 0);
     
+    // Simplified impact calculations for free-space channels
+    const totalFreeSpaceTurbulenceImpact = quantumEdges.reduce((sum, edge) => {
+      if (edge.data?.channelType === 'free_space' && edge.data?.atmosphericTurbulence) {
+        const length = edge.data.length || 0;
+        switch (edge.data.atmosphericTurbulence) {
+          case 'weak': return sum + length * 0.01; // Example impact factor
+          case 'moderate': return sum + length * 0.05;
+          case 'strong': return sum + length * 0.1;
+          default: return sum;
+        }
+      }
+      return sum;
+    }, 0);
+
+    const totalFreeSpaceFadingImpact = quantumEdges.reduce((sum, edge) => {
+      if (edge.data?.channelType === 'free_space' && edge.data?.fadingSeverity) {
+        const length = edge.data.length || 0;
+        switch (edge.data.fadingSeverity) {
+          case 'low': return sum + length * 0.02; // Example impact factor
+          case 'medium': return sum + length * 0.08;
+          case 'high': return sum + length * 0.15;
+          default: return sum;
+        }
+      }
+      return sum;
+    }, 0);
+
+    // Calculate classical channel stats
+    const totalClassicalBandwidth = classicalEdges.reduce((sum, edge) => sum + (edge.data?.classicalBandwidth || 0), 0);
+    const totalClassicalLatency = classicalEdges.reduce((sum, edge) => sum + (edge.data?.classicalLatency || 0), 0);
+
+
     const SPEED_OF_LIGHT_IN_FIBER_KMS = 299792.458 / 1.44; 
-    const estimatedLatency = (totalLength / SPEED_OF_LIGHT_IN_FIBER_KMS) * 1000; // in ms
+    const estimatedLatency = (totalLength / SPEED_OF_LIGHT_IN_FIBER_KMS) * 1000 + totalClassicalLatency; // in ms, including classical latency
 
     const networkSurvivalProbability = quantumEdges.reduce((prod, edge) => {
       const attenuation = edge.data?.attenuation || 0;
       const length = edge.data?.length || 0;
-      const survival = 10**(-(attenuation * length) / 10);
+      let survival = 10**(-(attenuation * length) / 10);
+
+      // Further degrade survival for free-space
+      if (edge.data?.channelType === 'free_space') {
+        if (edge.data.atmosphericTurbulence === 'weak') survival *= 0.99;
+        if (edge.data.atmosphericTurbulence === 'moderate') survival *= 0.95;
+        if (edge.data.atmosphericTurbulence === 'strong') survival *= 0.85;
+
+        if (edge.data.fadingSeverity === 'low') survival *= 0.98;
+        if (edge.data.fadingSeverity === 'medium') survival *= 0.90;
+        if (edge.data.fadingSeverity === 'high') survival *= 0.75;
+      }
+
       return prod * survival;
     }, 1);
 
@@ -336,6 +364,11 @@ const App: React.FC = () => {
       networkSurvivalProbability,
       totalDispersion,
       totalPDL,
+      totalThermalNoise,
+      totalFreeSpaceTurbulenceImpact,
+      totalFreeSpaceFadingImpact,
+      totalClassicalBandwidth,
+      totalClassicalLatency,
     });
   }, [edges]);
 
@@ -357,7 +390,29 @@ const App: React.FC = () => {
 
   const onConnect = useCallback(
     (params: Connection) => {
-      setEdges((eds) => addEdge({ ...params, animated: true, type: 'smoothstep', data: { type: 'quantum', length: 10, attenuation: 0.2, dispersion: 0.1, polarizationDependentLoss: 0.05, temperature: 295 } }, eds));
+      setEdges((eds) => addEdge({ 
+        ...params, 
+        animated: true, 
+        type: 'smoothstep', 
+        data: { 
+          type: 'quantum', // Default to quantum
+          length: 10, 
+          attenuation: 0.2, 
+          dispersion: 0.1, 
+          polarizationDependentLoss: 0.05, 
+          temperature: 295,
+          thermalNoiseSpectralDensity: 1e-18, // Default value for new noise param
+          channelDepolarizingRate: 0.0001,    // Default value for new noise param
+          channelDephasingRate: 0.0001,      // Default value for new noise param
+          channelType: 'fiber', // Default to fiber
+          atmosphericTurbulence: 'weak',
+          fadingSeverity: 'none',
+          // Default values for classical channels, if type is changed later in properties
+          classicalBandwidth: 100, // Mbps
+          classicalLatency: 5,     // ms
+          classicalErrorRate: 0.001, // 0 to 1
+        } 
+      }, eds));
       triggerUserAction();
     },
     [setEdges]
@@ -430,6 +485,7 @@ const App: React.FC = () => {
     setAnalysisStatus('idle');
     setSelectedNodeForAnalysis(null);
     setActiveMobilePanel(null);
+    setParameterSweepSettings(null); // Clear sweep settings on clear
     if (isTutorialModeActive) {
         handleExitTutorial();
     }
@@ -458,6 +514,13 @@ const App: React.FC = () => {
     }
   };
 
+  const runAnalysis = useCallback(async (circuit: CircuitData, mode: AnalysisMode): Promise<AnalysisResult> => {
+    const circuitJson = JSON.stringify(circuit);
+    const result = await analyzeCircuitWithGemini(circuitJson, simulationSettings, mode);
+    return result;
+  }, [simulationSettings]);
+
+
   const handleAnalyze = async (mode: AnalysisMode) => {
     if (isTutorialModeActive && currentStep?.action === 'click-element' && currentStep.targetId?.startsWith('analysis-button-group')) {
         if (currentStep.expectedClickValue && mode === currentStep.expectedClickValue) {
@@ -474,9 +537,9 @@ const App: React.FC = () => {
     setAnalysisResult(null);
     setSelectedNodeForAnalysis(null);
     setActiveMobilePanel('analysis');
+    
     try {
-      const circuitJson = JSON.stringify({ nodes, edges });
-      const result = await analyzeCircuitWithGemini(circuitJson, simulationSettings, mode);
+      const result = await runAnalysis({ nodes, edges }, mode);
       setAnalysisResult(result);
       setAnalysisStatus('success');
     } catch(error) {
@@ -484,6 +547,88 @@ const App: React.FC = () => {
       setAnalysisStatus('error');
     }
   };
+
+  const handleRunParameterSweep = useCallback(async (sweepSettings: ParameterSweepSettings, mode: AnalysisMode) => {
+    if (nodes.length === 0) {
+      alert("لطفاً ابتدا یک مدار برای پیمایش پارامتر بسازید.");
+      return;
+    }
+    if (!sweepSettings || !sweepSettings.parameter || !sweepSettings.range) {
+      alert("لطفاً تنظیمات پیمایش پارامتر را به درستی وارد کنید.");
+      return;
+    }
+
+    setIsSweeping(true);
+    setAnalysisStatus('loading');
+    setAnalysisResult(null);
+    setActiveMobilePanel('analysis');
+
+    const sweepResults: SweepResultEntry[] = [];
+    const { parameter, targetId, targetType, range } = sweepSettings;
+    
+    let currentValue = range.start;
+    const isNodeParam = targetType === 'node';
+    const isEdgeParam = targetType === 'edge';
+
+    try {
+      while (currentValue <= range.end) {
+        let tempNodes = [...nodes];
+        let tempEdges = [...edges];
+
+        // Apply parameter change to a clone of the circuit
+        if (targetId) {
+          if (isNodeParam) {
+            tempNodes = tempNodes.map(node =>
+              node.id === targetId ? { ...node, data: { ...node.data, [parameter]: currentValue } } : node
+            );
+          } else if (isEdgeParam) {
+            tempEdges = tempEdges.map(edge =>
+              edge.id === targetId ? { ...edge, data: { ...edge.data, [parameter]: currentValue } } : edge
+            );
+          }
+        } else { // Network-wide parameter, if applicable (e.g., global T1/T2 from simulation settings)
+            // For now, only node/edge specific parameters are supported by this sweep UI.
+            // Global settings would require modifying simulationSettings directly and re-running.
+        }
+
+        const currentCircuit: CircuitData = { nodes: tempNodes, edges: tempEdges };
+        const result: AnalysisResult = await runAnalysis(currentCircuit, mode);
+
+        const entry: SweepResultEntry = { value: currentValue };
+        if (result.networkPerformance) {
+            entry.qber = result.protocolAnalysis?.qber;
+            entry.fidelity = result.networkPerformance.endToEndFidelity;
+            entry.keyRate = result.networkPerformance.keyRate;
+            entry.latency = result.networkPerformance.latency;
+        } else if (result.protocolAnalysis) {
+            entry.qber = result.protocolAnalysis.qber;
+        }
+
+        sweepResults.push(entry);
+        currentValue += range.step;
+      }
+
+      const finalSweepResult: SweepResult = {
+        parameter: parameter,
+        unit: 'N/A', // Unit needs to be dynamically determined or user-specified
+        results: sweepResults,
+      };
+
+      // Now, run one final analysis on the *original* circuit to get the main report
+      // and attach the sweep results to it.
+      const finalAnalysisReport = await runAnalysis({ nodes, edges }, mode);
+      setAnalysisResult({ ...finalAnalysisReport, sweepResults: [finalSweepResult] });
+      setAnalysisStatus('success');
+
+    } catch (error) {
+      console.error("Error during parameter sweep:", error);
+      setAnalysisStatus('error');
+      setAnalysisResult(null);
+    } finally {
+      setIsSweeping(false);
+    }
+  }, [nodes, edges, runAnalysis]);
+
 
   // --- Code Import/Export Handlers ---
   const handleExportCode = useCallback(async (language: CodeLanguage) => {
@@ -498,11 +643,8 @@ const App: React.FC = () => {
       setIsExportingCode(true);
       setActiveCodeLanguage(language);
       try {
-          const simplifiedCircuit = {
-              nodes: nodes.map(({ id, type, data }) => ({ id, type, data: { label: data.label, angle: data.angle } })),
-              edges: edges.map(({ id, source, target, sourceHandle, targetHandle }) => ({ id, source, target, sourceHandle, targetHandle })),
-          };
-          const code = await generateCodeFromCircuit(JSON.stringify(simplifiedCircuit), language);
+          // Pass full node/edge data so Gemini can use all custom/advanced parameters
+          const code = await generateCodeFromCircuit(JSON.stringify({ nodes, edges }), language);
           setExportedCode(prev => ({ ...prev, [language]: code }));
       } catch (error) {
           console.error(`Failed to export to ${language}`, error);
@@ -542,11 +684,8 @@ const App: React.FC = () => {
     setIsExportingHardwareCode(true);
     setExportedHardwareCode(''); // Clear previous
     try {
-        const simplifiedCircuit = {
-            nodes: nodes.map(({ id, type, data }) => ({ id, type, data: { label: data.label } })),
-            edges: edges.map(({ id, source, target }) => ({ id, source, target })),
-        };
-        const code = await generateHardwareCodeFromCircuit(JSON.stringify(simplifiedCircuit), 'verilog');
+        // Pass full node/edge data for more context to Gemini
+        const code = await generateHardwareCodeFromCircuit(JSON.stringify({ nodes, edges }), 'verilog');
         setExportedHardwareCode(code);
     } catch (error) {
         console.error(`Failed to export to verilog`, error);
@@ -588,6 +727,10 @@ const App: React.FC = () => {
                             onImportCode={() => setIsImportModalOpen(true)}
                             onExportCode={handleOpenExportModal}
                             onExportHardwareCode={handleOpenHardwareModal}
+                            onRunParameterSweep={handleRunParameterSweep}
+                            isSweeping={isSweeping}
+                            nodes={nodes}
+                            edges={edges}
                         />
                     ) : (
                         <div id="component-palette-wrapper">
@@ -646,6 +789,7 @@ const App: React.FC = () => {
                         onAnalyze={handleAnalyze}
                         analysisStatus={analysisStatus}
                         analysisResult={analysisResult}
+                        isSweeping={isSweeping}
                         />
                 </div>
                 
@@ -654,6 +798,7 @@ const App: React.FC = () => {
                         onAnalyze={handleAnalyze}
                         analysisStatus={analysisStatus}
                         analysisResult={analysisResult}
+                        isSweeping={isSweeping}
                     />
                 </div>
             </div>
@@ -682,7 +827,7 @@ const App: React.FC = () => {
                         </nav>
                     </div>
                     <div className="flex-grow overflow-y-auto" id="mobile-component-palette-wrapper">
-                      {mobileToolsTab === 'controls' && <ControlPanel onGenerate={(p) => {handleGenerateCircuit(p); setActiveMobilePanel(null)}} isGenerating={isGenerating} onClear={() => {handleClear(); setActiveMobilePanel(null)}} onLoadTemplate={(t) => {handleLoadTemplate(t); setActiveMobilePanel(null)}} settings={simulationSettings} onSettingsChange={setSimulationSettings} onStartTutorial={(t) => {handleStartTutorial(t); setActiveMobilePanel(null)}} onImportCode={() => {setIsImportModalOpen(true); setActiveMobilePanel(null)}} onExportCode={() => {handleOpenExportModal(); setActiveMobilePanel(null)}} onExportHardwareCode={() => {handleOpenHardwareModal(); setActiveMobilePanel(null)}} />}
+                      {mobileToolsTab === 'controls' && <ControlPanel onGenerate={(p) => {handleGenerateCircuit(p); setActiveMobilePanel(null)}} isGenerating={isGenerating} onClear={() => {handleClear(); setActiveMobilePanel(null)}} onLoadTemplate={(t) => {handleLoadTemplate(t); setActiveMobilePanel(null)}} settings={simulationSettings} onSettingsChange={setSimulationSettings} onStartTutorial={(t) => {handleStartTutorial(t); setActiveMobilePanel(null)}} onImportCode={() => {setIsImportModalOpen(true); setActiveMobilePanel(null)}} onExportCode={() => {handleOpenExportModal(); setActiveMobilePanel(null)}} onExportHardwareCode={() => {handleOpenHardwareModal(); setActiveMobilePanel(null)}} onRunParameterSweep={(sweep, mode) => {handleRunParameterSweep(sweep, mode); setActiveMobilePanel(null);}} isSweeping={isSweeping} nodes={nodes} edges={edges}/>}
                       {mobileToolsTab === 'components' && <ComponentPalette />}
                       {mobileToolsTab === 'properties' && (selectedNode || selectedEdge) && <PropertiesPanel selectedNode={selectedNode} selectedEdge={selectedEdge} onUpdateNode={handleUpdateNode} onUpdateEdge={handleUpdateEdge} simulationResult={analysisResult} />}
                     </div>

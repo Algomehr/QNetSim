@@ -140,3 +140,52 @@ export const InterferometerIcon = () => (
         <text x="12" y="14" fontSize="8" textAnchor="middle" fill="currentColor" fontWeight="bold">λ</text>
     </svg>
 );
+
+export const WaveplateIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M0 0h24v24H0z" stroke="none"/>
+    <path d="M11 3v18l-8-4v-10zM13 3v18l8-4v-10z"/>
+    <path d="M12 8l-8-4M12 16l-8 4"/>
+    <path d="M12 8l8-4M12 16l8 4"/>
+    <path d="M4 4l16 0"/>
+    <path d="M4 20l16 0"/>
+  </svg>
+);
+
+export const PolarizerIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M0 0h24v24H0z" stroke="none"/>
+    <rect x="3" y="5" width="18" height="14" rx="2" ry="2"/>
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="12" y1="5" x2="12" y2="19" strokeDasharray="2,2"/>
+  </svg>
+);
+
+export const PockelsCellIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M0 0h24v24H0z" stroke="none"/>
+    <rect x="4" y="4" width="16" height="16" rx="2"/>
+    <line x1="4" y1="12" x2="20" y2="12"/>
+    <circle cx="12" cy="8" r="2" fill="currentColor"/>
+    <circle cx="12" cy="16" r="2" fill="currentColor"/>
+    <text x="12" y="12" fontSize="6" textAnchor="middle" fill="currentColor" fontWeight="bold">PC</text>
+  </svg>
+);
+
+export const EOMIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M0 0h24v24H0z" stroke="none"/>
+    <rect x="3" y="8" width="18" height="8" rx="2"/>
+    <path d="M7 8l-4 4l4 4"/>
+    <path d="M17 8l4 4l-4 4"/>
+    <path d="M12 8v8"/>
+    <text x="12" y="13" fontSize="6" textAnchor="middle" fill="currentColor" fontWeight="bold">EOM</text>
+  </svg>
+);
+
+export const CustomIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 3.75H6.75a2.25 2.25 0 00-2.25 2.25v1.5M4.5 12.75V15m0 2.25v1.5A2.25 2.25 0 006.75 21h1.5M12 19.5v-1.5m0-6.75v-1.5M19.5 12.75V15m0 2.25v1.5a2.25 2.25 0 00-2.25 2.25h-1.5M4.5 9V7.5a2.25 2.25 0 012.25-2.25H9M12 4.5V3m7.5 3h-1.5M21 9V7.5a2.25 2.25 0 00-2.25-2.25H15m0 12.75h-1.5m-6-6.75h-1.5"/>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 12a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+  </svg>
+);

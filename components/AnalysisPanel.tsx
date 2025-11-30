@@ -7,6 +7,7 @@ interface AnalysisPanelProps {
   onAnalyze: (mode: AnalysisMode) => void;
   analysisStatus: AnalysisStatus;
   analysisResult: AnalysisResult | null;
+  isSweeping: boolean; // New prop
 }
 
 const analysisOptions: { id: AnalysisMode; label: string; description: string }[] = [
@@ -22,13 +23,14 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   onAnalyze,
   analysisStatus,
   analysisResult,
+  isSweeping, // Use new prop
 }) => {
   const [height, setHeight] = useState(384);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<AnalysisMode>('comprehensive');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const isLoading = analysisStatus === 'loading';
+  const isLoading = analysisStatus === 'loading' || isSweeping; // Combine loading states
   const currentOption = analysisOptions.find(opt => opt.id === selectedMode);
 
   useEffect(() => {
